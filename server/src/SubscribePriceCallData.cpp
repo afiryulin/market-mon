@@ -52,13 +52,13 @@ void SubscribePriceCallData::ProcessData(bool ok)
 
 void Print(const market::v1::PriceUpdate &response)
 {
-    spdlog::trace("TRACE: {} {} {}", response.symbol(), response.price(), response.timestamp());
+    spdlog::info("TRACE: {} {} {}", response.symbol(), response.price(), response.timestamp());
 }
 
 void SubscribePriceCallData::SendPrice()
 {
     std::lock_guard<std::mutex> lock(mMutex);
-    spdlog::trace("SubscribePriceCallData::SendPrice");
+    spdlog::info("SubscribePriceCallData::SendPrice");
     Print(mResponse);
 
     if (eState::FINISH == mState || mWriteInProgress)
