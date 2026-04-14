@@ -26,3 +26,7 @@ jobs:
     - name: Build
       run: |
         cmake --build ${{github.workspace}}/build -j$(nproc)
+
+    - name: Run for 10 seconds
+      run: |
+        timeout 10s ${{github.workspace}}/build/server/market_server [$? eq 124]
