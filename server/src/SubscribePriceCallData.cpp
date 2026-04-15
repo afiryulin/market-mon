@@ -20,10 +20,16 @@ SubscribePriceCallData::SubscribePriceCallData(
 
 void SubscribePriceCallData::ProcessData(bool ok)
 {
+    if (!ok)
+    {
+        spdlog::error("Process data got NOK result");
+        delete this;
+        return;
+    }
+
     if (eState::CREATE == mState)
     {
         mState = eState::PROCESS;
-
         mService->RequestSubscribePrices(&mContext, &mRequest, mPriceWriter.get(), mCompletionQueue, mCompletionQueue, this);
         return;
     }
@@ -36,18 +42,22 @@ void SubscribePriceCallData::ProcessData(bool ok)
 
         mState = eState::WRITE;
         SendPrice();
-
         return;
     }
 
     if (eState::WRITE == mState)
     {
-        SendPrice();
         mState = eState::FINISH;
+        SendPrice();
         return;
     }
 
-    delete this;
+    // if (eState::FINISH == mState)
+    // {
+    //     mPriceWriter->Finish(grpc::Status::OK, this);
+    //     delete this;
+    //     return;
+    // }
 }
 
 void Print(const market::v1::PriceUpdate &response)
@@ -57,11 +67,16 @@ void Print(const market::v1::PriceUpdate &response)
 
 void SubscribePriceCallData::SendPrice()
 {
+<<<<<<< Updated upstream
     std::lock_guard<std::mutex> lock(mMutex);
     spdlog::trace("SubscribePriceCallData::SendPrice");
+=======
+    std::lock_guard<std::mutex> lock(mWriteMutex);
+    spdlog::info("SubscribePriceCallData::SendPrice");
+>>>>>>> Stashed changes
     Print(mResponse);
 
-    if (eState::FINISH == mState || mWriteInProgress)
+    if (eState::FINISH == mState)
     {
         return;
     }
@@ -71,13 +86,5 @@ void SubscribePriceCallData::SendPrice()
     mResponse.set_timestamp(time(nullptr));
 
     Print(mResponse);
-    mWriteInProgress = true;
-    try
-    {
-        mPriceWriter->Write(mResponse, this);
-    }
-    catch (const std::exception &ex)
-    {
-        spdlog::error("Exception: {}", ex.what());
-    }
+    mPriceWriter->Write(mResponse, this);
 }

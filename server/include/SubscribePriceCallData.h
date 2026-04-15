@@ -30,6 +30,5 @@ private:
     market::v1::PriceUpdate mResponse;
 
     std::unique_ptr<grpc::ServerAsyncWriter<market::v1::PriceUpdate>> mPriceWriter;
-    std::mutex mMutex;
-    bool mWriteInProgress{false};
+    std::mutex mWriteMutex;
 };
