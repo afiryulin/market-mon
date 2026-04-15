@@ -52,12 +52,12 @@ void SubscribePriceCallData::ProcessData(bool ok)
         return;
     }
 
-    // if (eState::FINISH == mState)
-    // {
-    //     mPriceWriter->Finish(grpc::Status::OK, this);
-    //     delete this;
-    //     return;
-    // }
+    if (eState::FINISH == mState)
+    {
+        mPriceWriter->Finish(grpc::Status::OK, this);
+        delete this;
+        return;
+    }
 }
 
 void Print(const market::v1::PriceUpdate &response)
