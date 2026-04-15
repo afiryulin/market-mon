@@ -67,13 +67,8 @@ void Print(const market::v1::PriceUpdate &response)
 
 void SubscribePriceCallData::SendPrice()
 {
-<<<<<<< Updated upstream
-    std::lock_guard<std::mutex> lock(mMutex);
-    spdlog::trace("SubscribePriceCallData::SendPrice");
-=======
     std::lock_guard<std::mutex> lock(mWriteMutex);
     spdlog::info("SubscribePriceCallData::SendPrice");
->>>>>>> Stashed changes
     Print(mResponse);
 
     if (eState::FINISH == mState)
