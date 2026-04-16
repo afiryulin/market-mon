@@ -3,7 +3,7 @@
 #include <spdlog/spdlog.h>
 
 #include "market/v1/market.grpc.pb.h"
-#include "Config.h"
+#include "common/Config.h"
 
 int main()
 {

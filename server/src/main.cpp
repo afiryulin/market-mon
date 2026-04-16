@@ -1,6 +1,6 @@
 #include <spdlog/spdlog.h>
 #include "../include/AsyncMarketServer.h"
-#include "Config.h"
+#include "common/Config.h"
 
 int main()
 {

@@ -5,7 +5,11 @@ add_executable(${TARGET_NAME}
     src/SubscribePriceCallData.cpp
 )
 
-configure_file(${PROJECT_SOURCE_DIR}/common/Config.h.in common/Config.h)
+configure_file(
+    ${PROJECT_SOURCE_DIR}/common/Config.h.in
+    ${PROJECT_BINARY_DIR}/common/Config.h
+)
+
 target_include_directories(${TARGET_NAME} PUBLIC "${PROJECT_BINARY_DIR}")
 
 target_link_libraries(${TARGET_NAME}
