@@ -1,15 +1,19 @@
 #pragma once
 
-#include "market/v1/market.grpc.pb.h"
-#include "IMarketCallDataBase.h"
+#include <queue>
 
-class SubscribePriceCallData final : public IMarketCallDataBase
+#include "market/v1/market.grpc.pb.h"
+#include "ICallDataBase.h"
+
+class SubscribePriceCallData final : public ICallDataBase
 {
 public:
     SubscribePriceCallData(
         market::v1::MarketService::AsyncService * /*service*/,
         grpc::ServerCompletionQueue * /*completionQueue*/);
+
     void ProcessData(bool ok) override;
+    void PushPrice(const std::string &symbol, double value);
 
 private:
     void SendPrice();
@@ -31,4 +35,6 @@ private:
 
     std::unique_ptr<grpc::ServerAsyncWriter<market::v1::PriceUpdate>> mPriceWriter;
     std::mutex mWriteMutex;
+    std::atomic<bool> mWriteInProgress{false};
+    std::queue<market::v1::PriceUpdate> mUpdateQueue;
 };
