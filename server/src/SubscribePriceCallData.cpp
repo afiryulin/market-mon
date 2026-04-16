@@ -22,8 +22,7 @@ void SubscribePriceCallData::ProcessData(bool ok)
 {
     if (!ok)
     {
-        spdlog::error("ProcessData failed in state {}, ok=false", static_cast<int>(mState));
-        spdlog::error("Context status: {}", mContext.peer()); // For connection info
+        spdlog::info("Context status: client {} disconnected", mContext.peer()); // For connection info
         delete this;
         return;
     }
