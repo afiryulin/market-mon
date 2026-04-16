@@ -1,9 +1,14 @@
 #include <spdlog/spdlog.h>
 #include "../include/AsyncMarketServer.h"
+#include "../include/SubscriberManager.h"
 #include "../include/SubscribePriceCallData.h"
+#include "../include/GetPriceCallData.h"
 
 void AsyncMarketServer::Run(const std::string &address)
 {
+    mPriceGenerator.SetCallback([](const std::string &symbol, double value)
+                                { SubscriberManager::Instance().BroadcastPrice(symbol, value); });
+
     grpc::ServerBuilder serverBuilder;
     serverBuilder.AddListeningPort(address, grpc::InsecureServerCredentials());
     serverBuilder.RegisterService(&mService);
@@ -14,6 +19,7 @@ void AsyncMarketServer::Run(const std::string &address)
     spdlog::info("Market Server started on {}", address);
 
     new SubscribePriceCallData(&mService, mCompletionQueue.get());
+    new GetPriceCallData(&mService, mCompletionQueue.get());
 
     const uint THREADS = std::thread::hardware_concurrency();
     for (int i = 0; i < THREADS; i++)
@@ -33,6 +39,7 @@ void AsyncMarketServer::Shutdown()
     {
         mCompletionQueue->Shutdown();
     }
+    mPriceGenerator.Stop();
 }
 
 void AsyncMarketServer::HandleCall()
@@ -40,11 +47,12 @@ void AsyncMarketServer::HandleCall()
     std::stringstream ss;
     ss << std::this_thread::get_id();
     spdlog::info("Server's thread [{}] started", ss.str());
+
     void *tag;
     bool ok;
 
     while (mCompletionQueue->Next(&tag, &ok))
     {
-        static_cast<IMarketCallDataBase *>(tag)->ProcessData(ok);
+        static_cast<ICallDataBase *>(tag)->ProcessData(ok);
     }
 }

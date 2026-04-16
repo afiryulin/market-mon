@@ -15,7 +15,7 @@ int main()
 
     grpc::ClientContext context;
     SubscribeRequest request;
-    request.set_symbol("USD");
+    request.set_symbol("ETH");
     auto reader = stub->SubscribePrices(&context, request);
 
     PriceUpdate response;

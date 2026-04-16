@@ -4,6 +4,7 @@
 #include "../include/SubscribePriceCallData.h"
 #include "market/v1/market.pb.h"
 #include <grpcpp/completion_queue.h>
+#include "../include/SubscriberManager.h"
 
 SubscribePriceCallData::SubscribePriceCallData(
     market::v1::MarketService::AsyncService *service,
@@ -20,9 +21,12 @@ SubscribePriceCallData::SubscribePriceCallData(
 
 void SubscribePriceCallData::ProcessData(bool ok)
 {
+
     if (!ok)
     {
-        spdlog::info("Context status: client {} disconnected", mContext.peer()); // For connection info
+        spdlog::info("NOK RESULT Context status: client {} disconnected", mContext.peer());
+
+        SubscriberManager::Instance().RemoveSubscriber(this);
         delete this;
         return;
     }
@@ -41,9 +45,10 @@ void SubscribePriceCallData::ProcessData(bool ok)
 
     if (eState::PROCESS == mState)
     {
-        new SubscribePriceCallData(mService, mCompletionQueue);
-
         spdlog::info("Client subscribe to {}", mRequest.symbol());
+
+        new SubscribePriceCallData(mService, mCompletionQueue);
+        SubscriberManager::Instance().AddSubscriber(this);
 
         mState = eState::WRITE;
         SendPrice();
@@ -52,16 +57,52 @@ void SubscribePriceCallData::ProcessData(bool ok)
 
     if (eState::WRITE == mState)
     {
-        // mState = eState::FINISH;
-        SendPrice();
+        std::lock_guard<std::mutex> locker(mWriteMutex);
+        if (!mUpdateQueue.empty())
+        {
+            mUpdateQueue.pop();
+            mPriceWriter->Write(mUpdateQueue.front(), this);
+        }
+        else
+        {
+            mState = eState::FINISH;
+            mWriteInProgress.store(false);
+        }
+
         return;
     }
 
-    if (eState::FINISH == mState)
+    if (eState::FINISH == mState && !ok)
     {
+        spdlog::info("Context status: client {} disconnected", mContext.peer());
+
+        SubscriberManager::Instance().RemoveSubscriber(this);
         mPriceWriter->Finish(grpc::Status::OK, this);
         delete this;
         return;
+    }
+}
+
+void SubscribePriceCallData::PushPrice(const std::string &symbol, double value)
+{
+    if (symbol != mRequest.symbol())
+    {
+        return;
+    }
+
+    market::v1::PriceUpdate update;
+    update.set_symbol(symbol);
+    update.set_price(value);
+    update.set_timestamp(time(nullptr));
+
+    std::lock_guard<std::mutex> locker(mWriteMutex);
+
+    mUpdateQueue.push(update);
+
+    if (!mWriteInProgress.load())
+    {
+        mWriteInProgress.store(true);
+        mPriceWriter->Write(mUpdateQueue.front(), this);
     }
 }
 
@@ -86,5 +127,6 @@ void SubscribePriceCallData::SendPrice()
     mResponse.set_timestamp(time(nullptr));
 
     Print(mResponse);
+    std::this_thread::sleep_for(std::chrono::microseconds(400));
     mPriceWriter->Write(mResponse, this);
 }
