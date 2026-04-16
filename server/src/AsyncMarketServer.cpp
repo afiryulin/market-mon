@@ -16,13 +16,24 @@ void AsyncMarketServer::Run(const std::string &address)
     new SubscribePriceCallData(&mService, mCompletionQueue.get());
 
     const uint THREADS = std::thread::hardware_concurrency();
-    for (int i = 0; i < 1; i++)
+    for (int i = 0; i < THREADS; i++)
     {
         std::thread(&AsyncMarketServer::HandleCall, this).detach();
     }
 }
 
-void AsyncMarketServer::Shutdown() {}
+void AsyncMarketServer::Shutdown()
+{
+    spdlog::trace("Server shutdown.");
+    if (mServer)
+    {
+        mServer->Shutdown();
+    }
+    if (mCompletionQueue)
+    {
+        mCompletionQueue->Shutdown();
+    }
+}
 
 void AsyncMarketServer::HandleCall()
 {
@@ -34,13 +45,6 @@ void AsyncMarketServer::HandleCall()
 
     while (mCompletionQueue->Next(&tag, &ok))
     {
-        try
-        {
-            static_cast<IMarketCallDataBase *>(tag)->ProcessData(ok);
-        }
-        catch (const std::exception &e)
-        {
-            std::cerr << e.what() << '\n';
-        }
+        static_cast<IMarketCallDataBase *>(tag)->ProcessData(ok);
     }
 }
