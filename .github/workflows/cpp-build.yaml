@@ -2,9 +2,9 @@ name: C++ Build
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
   pull_request:
-    branches: [ main ]
+    branches: [ master ]
   workflow_dispatch:
 
 jobs:
@@ -13,7 +13,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Install dependencies
       run: |
@@ -29,4 +29,4 @@ jobs:
 
     - name: Check crush on startup
       run: |
-        timeout 10s ${{github.workspace}}/build/server/market_server [$? eq 124]
+        timeout 10s ${{github.workspace}}/build/server/market_server || [ $? eq 124 ]
