@@ -12,8 +12,6 @@ SubscriberManager &SubscriberManager::Instance()
 
 void SubscriberManager::AddSubscriber(SubscribePriceCallData *subscriber)
 {
-    spdlog::info("SubscriberManager::AddSubscriber");
-
     std::lock_guard<std::mutex> locker(mMutex);
     mSubscribers.push_back(subscriber);
 }
@@ -30,8 +28,14 @@ void SubscriberManager::RemoveSubscriber(SubscribePriceCallData *subscriber)
 
 void SubscriberManager::BroadcastPrice(const std::string &symbol, double value)
 {
-    std::lock_guard<std::mutex> locker(mMutex);
-    for (auto *subscriber : mSubscribers)
+
+    std::vector<SubscribePriceCallData *> buff;
+
+    {
+        std::lock_guard<std::mutex> locker(mMutex);
+        buff = mSubscribers;
+    }
+    for (auto *subscriber : buff)
     {
         subscriber->PushPrice(symbol, value);
     }

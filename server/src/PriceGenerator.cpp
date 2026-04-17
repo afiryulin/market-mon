@@ -2,6 +2,7 @@
 #include <chrono>
 
 #include "../include/PriceGenerator.h"
+#include "../include/SubscriberManager.h"
 
 void PriceGenerator::Start()
 {
@@ -41,7 +42,6 @@ void PriceGenerator::RunInternal()
             mCallback("BTC", btc);
             mCallback("ETH", eth);
         }
-
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
 }

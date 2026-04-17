@@ -3,7 +3,8 @@
 #include <spdlog/spdlog.h>
 
 #include "market/v1/market.grpc.pb.h"
-#include "common/Config.h"
+#include "../common/Config.h"
+#include "PriceClient.h"
 
 int main()
 {
@@ -11,18 +12,10 @@ int main()
     const std::string hostAddress = std::string(CLIENT_ADDRESS).append(":").append(SERVER_PORT);
 
     auto marketChannel = grpc::CreateChannel(hostAddress, grpc::InsecureChannelCredentials());
-    auto stub = MarketService::NewStub(marketChannel);
 
-    grpc::ClientContext context;
-    SubscribeRequest request;
-    request.set_symbol("ETH");
-    auto reader = stub->SubscribePrices(&context, request);
+    PriceClient client{marketChannel};
 
-    PriceUpdate response;
-    while (reader->Read(&response))
-    {
-        spdlog::info("Update: {}", response.symbol());
-    }
+    client.Subscribe("ETH");
 
     return 0;
 }

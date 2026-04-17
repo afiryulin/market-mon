@@ -16,7 +16,7 @@ public:
     void PushPrice(const std::string &symbol, double value);
 
 private:
-    void SendPrice();
+    void ProcessQueue();
     enum class eState
     {
         CREATE,

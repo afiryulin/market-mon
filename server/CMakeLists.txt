@@ -5,6 +5,8 @@ add_executable(${TARGET_NAME}
     src/SubscriberManager.cpp
     src/AsyncMarketServer.cpp
     src/SubscribePriceCallData.cpp
+    src/SubscriberManager.cpp
+    src/PriceGenerator.cpp
     src/GetPriceCallData.cpp
 )
 

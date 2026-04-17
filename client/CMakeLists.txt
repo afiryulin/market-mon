@@ -1,5 +1,7 @@
 add_executable(market_client
- main.cpp)
+     src/main.cpp
+     src/PriceClient.cpp
+ )
 
 configure_file(${PROJECT_SOURCE_DIR}/common/Config.h.in common/Config.h)
 target_include_directories(market_client PUBLIC "${PROJECT_BINARY_DIR}")

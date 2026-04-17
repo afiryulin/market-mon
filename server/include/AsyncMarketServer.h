@@ -3,7 +3,7 @@
 #include <grpcpp/grpcpp.h>
 #include "market/v1/market.grpc.pb.h"
 
-#include "../include/PriceGenerator.h"
+#include "PriceGenerator.h"
 
 class AsyncMarketServer
 {
