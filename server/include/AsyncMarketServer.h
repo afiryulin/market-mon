@@ -17,6 +17,5 @@ private:
     std::unique_ptr<grpc::ServerCompletionQueue> mCompletionQueue;
     market::v1::MarketService::AsyncService mService{};
     std::unique_ptr<grpc::Server> mServer;
-
     PriceGenerator mPriceGenerator;
 };

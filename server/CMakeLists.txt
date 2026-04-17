@@ -1,10 +1,13 @@
 set(TARGET_NAME market_server)
 add_executable(${TARGET_NAME}
     src/main.cpp
+    src/PriceGenerator.cpp
+    src/SubscriberManager.cpp
     src/AsyncMarketServer.cpp
     src/SubscribePriceCallData.cpp
     src/SubscriberManager.cpp
     src/PriceGenerator.cpp
+    src/GetPriceCallData.cpp
 )
 
 configure_file(

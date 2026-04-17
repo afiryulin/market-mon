@@ -21,6 +21,7 @@ SubscribePriceCallData::SubscribePriceCallData(
 
 void SubscribePriceCallData::ProcessData(bool ok)
 {
+
     if (!ok)
     {
         spdlog::info("Context status: client {} disconnected", mContext.peer());
@@ -63,6 +64,9 @@ void SubscribePriceCallData::ProcessData(bool ok)
 
     if (eState::FINISH == mState || !ok)
     {
+        spdlog::info("Context status: client {} disconnected", mContext.peer());
+
+        SubscriberManager::Instance().RemoveSubscriber(this);
         mPriceWriter->Finish(grpc::Status::OK, this);
         delete this;
         return;
