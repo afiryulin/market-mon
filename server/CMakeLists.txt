@@ -3,6 +3,8 @@ add_executable(${TARGET_NAME}
     src/main.cpp
     src/AsyncMarketServer.cpp
     src/SubscribePriceCallData.cpp
+    src/SubscriberManager.cpp
+    src/PriceGenerator.cpp
 )
 
 configure_file(

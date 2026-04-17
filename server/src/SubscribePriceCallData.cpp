@@ -4,6 +4,7 @@
 #include "../include/SubscribePriceCallData.h"
 #include "market/v1/market.pb.h"
 #include <grpcpp/completion_queue.h>
+#include "../include/SubscriberManager.h"
 
 SubscribePriceCallData::SubscribePriceCallData(
     market::v1::MarketService::AsyncService *service,
@@ -43,9 +44,10 @@ void SubscribePriceCallData::ProcessData(bool ok)
 
     if (eState::PROCESS == mState)
     {
-        new SubscribePriceCallData(mService, mCompletionQueue);
-
         spdlog::info("Client subscribe to {}", mRequest.symbol());
+
+        new SubscribePriceCallData(mService, mCompletionQueue);
+        SubscriberManager::Instance().AddSubscriber(this);
 
         mState = eState::WRITE;
         return;

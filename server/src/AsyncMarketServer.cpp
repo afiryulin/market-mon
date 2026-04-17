@@ -1,6 +1,7 @@
 #include <spdlog/spdlog.h>
 #include "../include/AsyncMarketServer.h"
 #include "../include/SubscribePriceCallData.h"
+#include "../include/SubscriberManager.h"
 
 void AsyncMarketServer::Run(const std::string &address)
 {
@@ -49,6 +50,6 @@ void AsyncMarketServer::HandleCall()
 
     while (mCompletionQueue->Next(&tag, &ok))
     {
-        static_cast<IMarketCallDataBase *>(tag)->ProcessData(ok);
+        static_cast<ICallDataBase *>(tag)->ProcessData(ok);
     }
 }

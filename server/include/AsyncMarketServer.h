@@ -3,6 +3,8 @@
 #include <grpcpp/grpcpp.h>
 #include "market/v1/market.grpc.pb.h"
 
+#include "PriceGenerator.h"
+
 class AsyncMarketServer
 {
 public:
@@ -15,4 +17,6 @@ private:
     std::unique_ptr<grpc::ServerCompletionQueue> mCompletionQueue;
     market::v1::MarketService::AsyncService mService{};
     std::unique_ptr<grpc::Server> mServer;
+
+    PriceGenerator mPriceGenerator;
 };
