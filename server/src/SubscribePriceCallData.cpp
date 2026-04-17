@@ -22,7 +22,9 @@ void SubscribePriceCallData::ProcessData(bool ok)
 {
     if (!ok)
     {
-        spdlog::info("Context status: client {} disconnected", mContext.peer()); // For connection info
+        spdlog::info("Context status: client {} disconnected", mContext.peer());
+
+        SubscriberManager::Instance().RemoveSubscriber(this);
         delete this;
         return;
     }
@@ -46,18 +48,18 @@ void SubscribePriceCallData::ProcessData(bool ok)
         spdlog::info("Client subscribe to {}", mRequest.symbol());
 
         mState = eState::WRITE;
-        SendPrice();
         return;
     }
 
     if (eState::WRITE == mState)
     {
-        // mState = eState::FINISH;
-        SendPrice();
+        std::lock_guard<std::mutex> locker(mWriteMutex);
+        mWriteInProgress.store(false);
+        ProcessQueue();
         return;
     }
 
-    if (eState::FINISH == mState)
+    if (eState::FINISH == mState || !ok)
     {
         mPriceWriter->Finish(grpc::Status::OK, this);
         delete this;
@@ -65,26 +67,40 @@ void SubscribePriceCallData::ProcessData(bool ok)
     }
 }
 
-void Print(const market::v1::PriceUpdate &response)
+void SubscribePriceCallData::PushPrice(const std::string &symbol, double value)
 {
-    spdlog::trace("TRACE: {} {} {}", response.symbol(), response.price(), response.timestamp());
-}
-
-void SubscribePriceCallData::SendPrice()
-{
-    std::lock_guard<std::mutex> lock(mWriteMutex);
-    spdlog::info("SubscribePriceCallData::SendPrice");
-    Print(mResponse);
-
-    if (eState::FINISH == mState)
+    if (eState::FINISH == mState || symbol != mRequest.symbol())
     {
         return;
     }
 
-    mResponse.set_symbol(mRequest.symbol());
-    mResponse.set_price(1000 + rand() % 100);
-    mResponse.set_timestamp(time(nullptr));
+    market::v1::PriceUpdate update;
+    update.set_symbol(mRequest.symbol());
+    update.set_price(value);
+    update.set_timestamp(time(nullptr));
 
-    Print(mResponse);
+    spdlog::info("TRACE: {} {} {}", update.symbol(), update.price(), update.timestamp());
+
+    {
+        std::lock_guard<std::mutex> lock(mWriteMutex);
+        mUpdateQueue.push(update);
+    }
+
+    ProcessQueue();
+
+    std::this_thread::sleep_for(std::chrono::microseconds(400)); // Just to avoid response spamming
+}
+
+void SubscribePriceCallData::ProcessQueue()
+{
+    if (mWriteInProgress.load() || mUpdateQueue.empty())
+    {
+        return;
+    }
+
+    mWriteInProgress.store(true);
+
+    mResponse = mUpdateQueue.front();
+    mUpdateQueue.pop();
     mPriceWriter->Write(mResponse, this);
 }

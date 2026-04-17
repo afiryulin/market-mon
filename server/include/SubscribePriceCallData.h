@@ -12,7 +12,7 @@ public:
     void ProcessData(bool ok) override;
 
 private:
-    void SendPrice();
+    void ProcessQueue();
     enum class eState
     {
         CREATE,

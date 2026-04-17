@@ -4,6 +4,10 @@
 
 void AsyncMarketServer::Run(const std::string &address)
 {
+    mPriceGenerator.SetCallback([](const std::string &symbol, double value)
+                                { SubscriberManager::Instance().BroadcastPrice(symbol, value); });
+    mPriceGenerator.Start();
+
     grpc::ServerBuilder serverBuilder;
     serverBuilder.AddListeningPort(address, grpc::InsecureServerCredentials());
     serverBuilder.RegisterService(&mService);
