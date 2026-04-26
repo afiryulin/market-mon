@@ -8,6 +8,7 @@ add_executable(${TARGET_NAME}
     src/SubscriberManager.cpp
     src/PriceGenerator.cpp
     src/GetPriceCallData.cpp
+    src/TradeCallData.cpp
 )
 
 configure_file(

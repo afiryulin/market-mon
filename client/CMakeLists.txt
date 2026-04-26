@@ -1,6 +1,7 @@
 add_executable(market_client
      src/main.cpp
      src/PriceClient.cpp
+     src/TradeClient.cpp
  )
 
 configure_file(${PROJECT_SOURCE_DIR}/common/Config.h.in common/Config.h)

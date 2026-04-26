@@ -85,7 +85,7 @@ void SubscribePriceCallData::PushPrice(const std::string &symbol, double value)
     update.set_price(value);
     update.set_timestamp(time(nullptr));
 
-    spdlog::info("TRACE: {} {} {}", update.symbol(), update.price(), update.timestamp());
+    spdlog::info("PRICE: {} {} {}", update.symbol(), update.price(), update.timestamp());
 
     {
         std::lock_guard<std::mutex> lock(mWriteMutex);
