@@ -1,0 +1,14 @@
+{
+    "name" : "Market Monitor Dev Container",
+    "dockerFile": "../docker/ci-base.Dockerfile",
+    "customizations": {
+        "vscode": {
+            "extensions": ["ms-vscode.cpptools", "ms-vscode.cmake-tools", "twxs.cmake"]
+        }
+    },
+    "remoteUser": "root",
+    "workspaceFolder": "/work",
+    "mounts": [
+        "source=${localWorkspaceFolder}, target=/work, type=bind"
+    ]
+}
