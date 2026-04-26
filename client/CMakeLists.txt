@@ -10,6 +10,6 @@ target_include_directories(market_client PUBLIC "${PROJECT_BINARY_DIR}")
 target_link_libraries(market_client
 PRIVATE
     market_proto
-    grpc++
+    gRPC::grpc++
     spdlog::spdlog
 )

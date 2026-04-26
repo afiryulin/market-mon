@@ -1,8 +1,11 @@
 FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && apt-get install -y \
-    build-essential \
+RUN apt-get update && apt-get install -y software-properties-common \
+    && add-apt-repository ppa:ubuntu-toolchain-r/test -y \
+    && apt-get update && apt-get install -y \
+    gcc-13 \
+    g++-13 \
     ninja-build \
     git \
     pkg-config \
@@ -11,17 +14,22 @@ RUN apt-get update && apt-get install -y \
     wget \
     && rm -rf /var/lib/apt/lists/*
 
+RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 100 \
+    && update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 100
 
 RUN wget -qO- https://github.com/Kitware/CMake/releases/download/v4.3.2/cmake-4.3.2-linux-x86_64.tar.gz | \
     tar --strip-components=1 -xz -C /usr/local
 
-RUN cmake --version
+ENV CC=gcc
+ENV CXX=g++
 
 WORKDIR /tmp/grpc-build
 
 RUN git clone --recurse-submodules -b v1.80.0 --depth 1 --shallow-submodules https://github.com/grpc/grpc .
 
 RUN cmake -B build -G Ninja \
+    -DCMAKE_CXX_COMPILER=g++-13 \
+    -DCMAKE_C_COMPILER=gcc-13 \
     -DgRPC_INSTALL=ON \
     -DgRPC_BUILD_TESTS=OFF \
     -DCMAKE_BUILD_TYPE=Release \

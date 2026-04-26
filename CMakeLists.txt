@@ -28,8 +28,9 @@ set(ABSL_ENABLE_INSTALL ON CACHE BOOL "" FORCE)
 
 list(APPEND CMAKE_PREFIX_PATH "/usr/local/lib/cmake/grpc" "/usr/local/lib/cmake/protobuf")
 
-find_package(protobuf CONFIG QUIET)
-find_package(gRPC CONFIG QUIET)
+# set(gRPC_AS_DEPENDENCY ON)
+find_package(protobuf CONFIG REQUIRED)
+find_package(gRPC CONFIG REQUIRED)
 
 if(gRPC_FOUND AND protobuf_FOUND)
     message(STATUS "SUCCESS: System gRPC and protobuf found!")

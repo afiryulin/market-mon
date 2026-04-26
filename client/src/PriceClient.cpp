@@ -1,4 +1,5 @@
 #include <chrono>
+#include <format>
 #include <spdlog/spdlog.h>
 
 #include "PriceClient.h"

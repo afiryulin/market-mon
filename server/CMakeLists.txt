@@ -21,6 +21,6 @@ target_include_directories(${TARGET_NAME} PUBLIC "${PROJECT_BINARY_DIR}")
 target_link_libraries(${TARGET_NAME}
 PRIVATE
     market_proto
-    grpc++
+    gRPC::grpc++
     spdlog::spdlog
 )
