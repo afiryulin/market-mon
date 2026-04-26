@@ -36,6 +36,7 @@ RUN cmake --build build --target install -- -j$(nproc)
 
 RUN ldconfig && cd / && rm -rf /tmp/grpc-build
 
-ENV CMAKE_PREFIX_PATH=/usr/local
+# ENV CMAKE_PREFIX_PATH="/usr/local/lib/cmake/grpc:/usr/local/lib/cmake/protobuf:${CMAKE_PREFIX_PATH}"
+# ENV PATH="/usr/local/bin:${PATH}"
 
 WORKDIR /work

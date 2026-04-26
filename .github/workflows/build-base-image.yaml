@@ -9,9 +9,10 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}/ci-base
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  build-and-push:
+  build-linux-ci-base:
     runs-on: ubuntu-latest
     permissions:
       contents: read

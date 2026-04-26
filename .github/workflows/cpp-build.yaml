@@ -7,6 +7,9 @@ on:
     branches: [ master ]
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build-linux:
     runs-on: ubuntu-latest
@@ -31,4 +34,4 @@ jobs:
     - name: Check crush on startup
       run: |
         timeout 3s ${{github.workspace}}/build/server/market_server || [ $? eq 124 ]
-        timeout 3s ${{github.workspace}}/build/server/market_server || [ $? eq 124 ]
+        timeout 3s ${{github.workspace}}/build/client/market_client || [ $? eq 124 ]

@@ -26,12 +26,21 @@ option(ENABLE_TESTS "Enable tests" ON)
 # gRPC
 set(ABSL_ENABLE_INSTALL ON CACHE BOOL "" FORCE)
 
+list(APPEND CMAKE_PREFIX_PATH "/usr/local/lib/cmake/grpc" "/usr/local/lib/cmake/protobuf")
+
+find_package(protobuf CONFIG QUIET)
 find_package(gRPC CONFIG QUIET)
-find_package(Protobuf CONFIG QUIET)
-if (gRPC_FOUND AND Protobuf_FOUND)
-    message(STATUS "gRPC and Protobuf found, skipping download")
-    set(GRPC_AS_DEPENDENCY ON)
+
+if(gRPC_FOUND AND protobuf_FOUND)
+    message(STATUS "SUCCESS: System gRPC and protobuf found!")
+
+    if(NOT TARGET grpc_cpp_plugin)
+        find_program(GRPC_CPP_PLUGIN_EXE grpc_cpp_plugin)
+        add_executable(grpc_cpp_plugin IMPORTED)
+        set_property(TARGET grpc_cpp_plugin PROPERTY IMPORTED_LOCATION ${GRPC_CPP_PLUGIN_EXE})
+    endif()
 else()
+
     message(STATUS "gRPC and/or Protobuf NOT found, downloading...")
 
     set(GRPC_BUILD_TESTS OFF CACHE BOOL "" FORCE)
@@ -39,16 +48,16 @@ else()
     set(gRPC_PROTOBUF_PROVIDER "module" CACHE STRING "" FORCE)
 
     CPMAddPackage(
-    NAME gRPC
-    GITHUB_REPOSITORY grpc/grpc
-    VERSION 1.80.0
-    GIT_TAG v1.80.0
-    SYSTEM YES
-    OPTIONS
-        "gRPC_INSTALL OFF"
-        "gRPC_BUILD_TESTS OFF"
-        "gRPC_ABSL_PROVIDER module"
-        "gRPC_PROTOBUF_PROVIDER module"
+        NAME gRPC
+        GITHUB_REPOSITORY grpc/grpc
+        VERSION 1.80.0
+        GIT_TAG v1.80.0
+        SYSTEM YES
+        OPTIONS
+            "gRPC_INSTALL OFF"
+            "gRPC_BUILD_TESTS OFF"
+            "gRPC_ABSL_PROVIDER module"
+            "gRPC_PROTOBUF_PROVIDER module"
     )
 endif()
 
