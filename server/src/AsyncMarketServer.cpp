@@ -4,6 +4,7 @@
 #include "../include/SubscribePriceCallData.h"
 #include "../include/SubscriberManager.h"
 #include "../include/GetPriceCallData.h"
+#include "../include/TradeCallData.h"
 
 void AsyncMarketServer::Run(const std::string &address)
 {
@@ -22,6 +23,7 @@ void AsyncMarketServer::Run(const std::string &address)
 
     new SubscribePriceCallData(&mService, mCompletionQueue.get());
     new GetPriceCallData(&mService, mCompletionQueue.get());
+    new TradeCallData(&mService, mCompletionQueue.get());
 
     const uint THREADS = std::thread::hardware_concurrency();
     for (int i = 0; i < THREADS; i++)

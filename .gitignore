@@ -4,6 +4,10 @@
 .vscode/
 .idea/
 .cache/
+.venv/
+entities.json
+mempalace.yaml
+
 
 
 # Build artifacts

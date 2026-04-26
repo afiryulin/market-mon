@@ -1,3 +1,5 @@
+#include <chrono>
+#include <format>
 #include <spdlog/spdlog.h>
 
 #include "PriceClient.h"
@@ -8,24 +10,31 @@ PriceClient::PriceClient(std::shared_ptr<grpc::Channel> channel)
 {
 }
 
-void PriceClient::Subscribe(const std::string &symbol)
+void PriceClient::ReadThreadFn(std::stop_token st, const std::string &symbol)
 {
+    market::v1::PriceUpdate updPrice;
     market::v1::SubscribeRequest request;
     request.set_symbol(symbol);
 
     grpc::ClientContext context;
     auto reader = mMarketStub->SubscribePrices(&context, request);
-
-    market::v1::PriceUpdate updPrice;
-    while (reader->Read(&updPrice))
+    while (!st.stop_requested() && reader->Read(&updPrice))
     {
-        spdlog::info("PRICE: [{}] {} {}", updPrice.timestamp(), updPrice.symbol(), updPrice.price());
+        auto tp = std::chrono::system_clock::from_time_t(updPrice.timestamp());
+        std::string priceTime = std::format("{:%Y-%m-%d %H:%M:%S}", tp);
+        spdlog::info("PRICE: [{}] {} {}", priceTime, updPrice.symbol(), updPrice.price());
     }
 
     grpc::Status status = reader->Finish();
-
     if (!status.ok())
     {
         spdlog::error("RPC failed: {}", status.error_message());
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
     }
+}
+
+void PriceClient::Subscribe(const std::string &symbol)
+{
+    mReadThread = std::jthread(&PriceClient::ReadThreadFn, this, symbol);
 }

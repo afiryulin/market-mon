@@ -8,6 +8,7 @@ add_executable(${TARGET_NAME}
     src/SubscriberManager.cpp
     src/PriceGenerator.cpp
     src/GetPriceCallData.cpp
+    src/TradeCallData.cpp
 )
 
 configure_file(
@@ -20,6 +21,6 @@ target_include_directories(${TARGET_NAME} PUBLIC "${PROJECT_BINARY_DIR}")
 target_link_libraries(${TARGET_NAME}
 PRIVATE
     market_proto
-    grpc++
+    gRPC::grpc++
     spdlog::spdlog
 )

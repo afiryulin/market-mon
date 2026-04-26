@@ -2,9 +2,9 @@
 #include <grpcpp/security/credentials.h>
 #include <spdlog/spdlog.h>
 
-#include "market/v1/market.grpc.pb.h"
 #include "../common/Config.h"
 #include "PriceClient.h"
+#include "TradeClient.h"
 
 int main()
 {
@@ -14,8 +14,12 @@ int main()
     auto marketChannel = grpc::CreateChannel(hostAddress, grpc::InsecureChannelCredentials());
 
     PriceClient client{marketChannel};
-
     client.Subscribe("ETH");
+
+    TradeClient tradeClient{marketChannel};
+    tradeClient.Run("ETH");
+
+    std::cin.get();
 
     return 0;
 }
