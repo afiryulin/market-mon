@@ -8,17 +8,23 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build-linux:
     runs-on: ubuntu-latest
+
+    container:
+      image: ghcr.io/${{ github.repository }}/ci-base:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential cmake qt6-base-dev protobuf-compiler-grpc libprotobuf-dev libgrpc++-dev ninja-build
+    # - name: Install dependencies
+    #   run: |
+    #     sudo apt-get update
+    #     sudo apt-get install -y build-essential cmake qt6-base-dev protobuf-compiler-grpc libprotobuf-dev libgrpc++-dev ninja-build
 
     - name: Configure CMake
       run: cmake -S . -B ${{github.workspace}}/build -G Ninja
@@ -29,4 +35,5 @@ jobs:
 
     - name: Check crush on startup
       run: |
-        timeout 10s ${{github.workspace}}/build/server/market_server || [ $? eq 124 ]
+        timeout 3s ${{github.workspace}}/build/server/market_server || [ $? eq 124 ]
+        timeout 3s ${{github.workspace}}/build/server/market_server || [ $? eq 124 ]

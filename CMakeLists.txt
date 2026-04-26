@@ -26,18 +26,32 @@ option(ENABLE_TESTS "Enable tests" ON)
 # gRPC
 set(ABSL_ENABLE_INSTALL ON CACHE BOOL "" FORCE)
 
-CPMAddPackage(
-  NAME gRPC
-  GITHUB_REPOSITORY grpc/grpc
-  VERSION 1.80.0
-  GIT_TAG v1.80.0
-  SYSTEM YES
-  OPTIONS
-    "gRPC_INSTALL OFF"
-    "gRPC_BUILD_TESTS OFF"
-    "gRPC_ABSL_PROVIDER module"
-    "gRPC_PROTOBUF_PROVIDER module"
-)
+find_package(gRPC CONFIG QUIET)
+find_package(Protobuf CONFIG QUIET)
+if (gRPC_FOUND AND Protobuf_FOUND)
+    message(STATUS "gRPC and Protobuf found, skipping download")
+    set(GRPC_AS_DEPENDENCY ON)
+else()
+    message(STATUS "gRPC and/or Protobuf NOT found, downloading...")
+
+    set(GRPC_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(gRPC_ABSL_PROVIDER "module" CACHE STRING "" FORCE)
+    set(gRPC_PROTOBUF_PROVIDER "module" CACHE STRING "" FORCE)
+
+    CPMAddPackage(
+    NAME gRPC
+    GITHUB_REPOSITORY grpc/grpc
+    VERSION 1.80.0
+    GIT_TAG v1.80.0
+    SYSTEM YES
+    OPTIONS
+        "gRPC_INSTALL OFF"
+        "gRPC_BUILD_TESTS OFF"
+        "gRPC_ABSL_PROVIDER module"
+        "gRPC_PROTOBUF_PROVIDER module"
+    )
+endif()
+
 
 # fmt
 CPMAddPackage(
