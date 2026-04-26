@@ -3,13 +3,19 @@ FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y \
     build-essential \
-    cmake \
     ninja-build \
     git \
     pkg-config \
     libssl-dev \
     zlib1g-dev \
+    wget \
     && rm -rf /var/lib/apt/lists/*
+
+
+RUN wget -qO- https://github.com/Kitware/CMake/releases/download/v4.3.2/cmake-4.3.2-linux-x86_64.tar.gz | \
+    tar --strip-components=1 -xz -C /usr/local
+
+RUN cmake --version
 
 WORKDIR /tmp/grpc-build
 
