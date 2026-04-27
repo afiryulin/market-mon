@@ -3,7 +3,7 @@ FROM ubuntu:24.04 AS builder
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y \
-    gcc-13 g++-13 ninja-build git pkg-config libssl-dev zlib1g-dev curl \
+    gcc-13 g++-13 ninja-build git pkg-config libssl-dev libgflags-dev zlib1g-dev curl \
     && rm -rf /var/lib/apt/lists/*
 
 RUN curl -L https://github.com/Kitware/CMake/releases/download/v4.3.2/cmake-4.3.2-linux-x86_64.tar.gz | \
@@ -20,6 +20,7 @@ RUN cmake -B build -G Ninja \
     -DgRPC_BUILD_TESTS=OFF \
     -DgRPC_SSL_PROVIDER=package \
     -DgRPC_ZLIB_PROVIDER=package \
+    -DgRPC_BUILD_GRPC_CLI=ON \
     -DCMAKE_INSTALL_PREFIX=/export \
     && cmake --build build --target install
 
