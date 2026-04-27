@@ -27,6 +27,16 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Free Disk Space (Windows)
+      if: matrix.os == 'windows-latest'
+      shell: pwsh
+      run: |
+        Get-ChildItem -Path "C:/Program Files/Android" -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
+        Get-ChildItem -Path "C:/Program Files (x86)/Android" -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
+        dotnet nuget locals all --clear
+        Get-PSDrive C
+
+
     - name: Cache vcpkg (Windows)
       if: matrix.os == 'windows-latest'
       uses: actions/cache@v3
@@ -46,23 +56,28 @@ jobs:
 
     - name: Install gRPC (Windows)
       if: matrix.os == 'windows-latest'
-      run: vcpkg install --triplet x64-windows
+      run: |
+        $tripletPath = "$($env:VCPKG_INSTALLATION_ROOT)/triplets/x64-windows.cmake"
+        Add-Content -Path $tripletPath -Value "set(VCPKG_BUILD_TYPE release)"
+        Get-Content $tripletPath -Tail 1
+        vcpkg install --triplet x64-windows
+
+    - name: Configure CMake (Windows)
+      if: matrix.os == 'windows-latest'
+      shell : pwsh
+      run: |
+        cmake -B build -S . `
+          -DCMAKE_TOOLCHAIN_FILE="C:/vcpkg/scripts/buildsystems/vcpkg.cmake" `
+          -DVCPKG_TARGET_TRIPLET=x64-windows `
+          -DCPM_USE_LOCAL_PACKAGES=ON
 
     - name: Configure CMake (Linux)
       if: matrix.os == 'ubuntu-latest'
       run: cmake -S . -B ${{github.workspace}}/build -G Ninja
 
-    - name: Configure CMake (Windows)
-      if: matrix.os == 'windows-latest'
-      run: |
-        cmake -B build -S . \
-          -DCMAKE_TOOLCHAIN_FILE="C:/vcpkg/scripts/buildsystems/vcpkg.cmake" \
-          -DVCPKG_TARGET_TRIPLET=x64-windows \
-          -DCPM_USE_LOCAL_PACKAGES=ON
-
     - name: Build
       run: |
-        cmake --build ${{github.workspace}}/build -j$(nproc)
+        cmake --build ${{github.workspace}}/build --paralle
 
     # - name: Check crush on startup
     #   run: |
