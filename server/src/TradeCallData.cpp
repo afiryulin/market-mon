@@ -3,16 +3,14 @@
 #include "../include/TradeCallData.h"
 #include "spdlog/spdlog.h"
 
-TradeCallData::TradeCallData(market::v1::MarketService::AsyncService *service, grpc::ServerCompletionQueue *completionQueue)
+TradeCallData::TradeCallData(MarketService::AsyncService *service, ServerCompletionQueue *completionQueue)
     : mService(service),
       mCompletionQueue(completionQueue),
       mContext{},
       mRequest{},
       mResponse{}
 {
-    mStream = std::make_unique<grpc::ServerAsyncReaderWriter<
-        market::v1::TradeEvent,
-        market::v1::TradeRequest>>(&mContext);
+    mStream = std::make_unique<ServerAsyncReaderWriter<TradeEvent, TradeRequest>>(&mContext);
 
     ProcessData(true);
 }
@@ -22,15 +20,7 @@ void TradeCallData::ProcessData(bool ok)
     if (!ok)
     {
 
-        if (eState::FINISH == mState)
-        {
-            delete this;
-        }
-        else
-        {
-            mState = eState::FINISH;
-            mStream->Finish(grpc::Status::OK, this);
-        }
+        Finish();
         return;
     }
 
@@ -48,30 +38,92 @@ void TradeCallData::ProcessData(bool ok)
 
     if (eState::CONNECTED == mState)
     {
+        spdlog::info("TradeStream connected: {}", mContext.peer());
         new TradeCallData(mService, mCompletionQueue);
 
-        mStream->Read(&mRequest, this);
-        mState = eState::WAIT_READ;
+        StartRead();
         return;
     }
 
-    if (eState::WAIT_READ == mState)
+    if (eState::READ == mState)
     {
-        spdlog::info("Trade Order: {} {} {}", mRequest.symbol(), mRequest.quantity(), mRequest.is_buy());
+        spdlog::info("Trade Order: {} {} {}", mRequest.symbol(), mRequest.quantity(), mRequest.is_buy() ? "BUY" : "SELL");
 
-        mResponse.set_symbol(mRequest.symbol());
-        mResponse.set_price(1000 + rand() % 100);
-        mResponse.set_status("FILLED");
+        TradeEvent response{};
+        response.set_symbol(mRequest.symbol());
+        response.set_price(1000 + rand() % 100);
+        response.set_status("ACCEPTED");
 
-        mState = eState::WAIT_WRITE;
-        mStream->Write(mResponse, this);
+        EnqueueResponse(response);
+        StartRead();
         return;
     }
 
-    if (eState::WAIT_WRITE == mState)
+    if (eState::WRITE == mState)
     {
-        mState = eState::WAIT_READ;
-        mStream->Read(&mRequest, this);
+        {
+            std::lock_guard<std::mutex> lockWriter(mWriteMutex);
+            mIsWriting.store(false);
+        }
+
+        TryWriteNext();
         return;
     }
+
+    if (eState::FINISH == mState)
+    {
+        delete this;
+        return;
+    }
+}
+void TradeCallData::StartRead()
+{
+    if (mIsFinished.load())
+        return;
+
+    mState = eState::READ;
+    mStream->Read(&mRequest, this);
+}
+
+void TradeCallData::EnqueueResponse(const TradeEvent &response)
+{
+    {
+        std::lock_guard<std::mutex> lock(mWriteMutex);
+        mWriteQueue.push(response);
+    }
+
+    TryWriteNext();
+}
+
+void TradeCallData::TryWriteNext()
+{
+    if (mIsFinished.load())
+        return;
+
+    std::lock_guard<std::mutex> locker(mWriteMutex);
+
+    if (mIsWriting.load())
+        return;
+
+    if (mWriteQueue.empty())
+        return;
+
+    mResponse = mWriteQueue.front();
+    mWriteQueue.pop();
+
+    mIsWriting.store(true);
+    mState = eState::WRITE;
+
+    mStream->Write(mResponse, this);
+}
+
+void TradeCallData::Finish()
+{
+    if (mIsFinished.load())
+        return;
+
+    spdlog::info("TradeStream disconnected: {}", mContext.peer());
+
+    mState = eState::FINISH;
+    mStream->Finish(Status::OK, this);
 }

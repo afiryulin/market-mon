@@ -1,15 +1,23 @@
 #pragma once
 
+#include <queue>
+#include <mutex>
+#include <atomic>
 #include <grpcpp/grpcpp.h>
 
 #include "ICallDataBase.h"
 #include "market/v1/market.grpc.pb.h"
 #include "market/v1/market.pb.h"
 
+using namespace market::v1;
+using namespace grpc;
+
 class TradeCallData : public ICallDataBase
 {
+
 public:
-    TradeCallData(market::v1::MarketService::AsyncService *service, grpc::ServerCompletionQueue *completionQueue);
+    TradeCallData(MarketService::AsyncService *service, ServerCompletionQueue *completionQueue);
+
     void ProcessData(bool ok) override;
 
 private:
@@ -17,24 +25,31 @@ private:
     {
         CREATE,
         CONNECTED,
-        WAIT_READ,
-        WAIT_WRITE,
+        READ,
+        WRITE,
         FINISH
     };
 
+private:
+    void StartRead();
+    void EnqueueResponse(const TradeEvent &response);
+    void TryWriteNext();
+    void Finish();
+
+private:
     eState mState = eState::CREATE;
+    MarketService::AsyncService *mService{};
+    ServerCompletionQueue *mCompletionQueue{};
+    ServerContext mContext;
 
-    market::v1::MarketService::AsyncService *mService;
-    grpc::ServerCompletionQueue *mCompletionQueue;
+    std::unique_ptr<ServerAsyncReaderWriter<TradeEvent, TradeRequest>> mStream;
 
-    grpc::ServerContext mContext;
+    TradeRequest mRequest;
+    TradeEvent mResponse;
 
-    std::unique_ptr<
-        grpc::ServerAsyncReaderWriter<
-            market::v1::TradeEvent,
-            market::v1::TradeRequest>>
-        mStream;
+    std::mutex mWriteMutex;
+    std::queue<TradeEvent> mWriteQueue;
 
-    market::v1::TradeRequest mRequest;
-    market::v1::TradeEvent mResponse;
+    std::atomic<bool> mIsWriting{false};
+    std::atomic<bool> mIsFinished{false};
 };

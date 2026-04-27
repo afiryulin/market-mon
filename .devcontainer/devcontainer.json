@@ -1,12 +1,20 @@
 {
-    "name" : "Market Monitor Dev Container",
-    "dockerFile": "../docker/ci-base.Dockerfile",
+    "name" : "dev-container",
+    "build" : {
+        "dockerfile": "../docker/dev-container.Dockerfile",
+    },
+
+    "image": "market-mon-dev",
+    "runArgs": [
+        "--name", "market-mon-dev",
+        "--rm"
+    ],
 
     "features": {
         "ghcr.io/devcontainers/features/common-utils": {
-                "installZsh": true,
-                "configureZshAsDefaultShell": true,
-                "installOhMyZsh": true
+            "installZsh": true,
+            "configureZshAsDefaultShell": true,
+            "installOhMyZsh": true
         }
     },
 
