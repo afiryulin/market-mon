@@ -1,6 +1,8 @@
 {
     "name" : "Market Monitor Dev Container",
-    "dockerFile": "../docker/dev-container.Dockerfile",
+    // "dockerFile": "../docker/dev-container.Dockerfile",
+    "dockerFile": "../docker/ci-base.Dockerfile",
+
 
     "features": {
         "ghcr.io/devcontainers/features/common-utils": {
