@@ -23,6 +23,7 @@ RUN cmake -B build -G Ninja \
     -DgRPC_BUILD_TESTS=OFF \
     -DgRPC_SSL_PROVIDER=package \
     -DgRPC_ZLIB_PROVIDER=package \
+    -DgRPC_BUILD_GRPC_CLI=ON \
     -DCMAKE_INSTALL_PREFIX=/usr/local \
     && cmake --build build --target install
 
