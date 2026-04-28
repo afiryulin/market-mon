@@ -77,7 +77,7 @@ jobs:
 
     - name: Build
       run: |
-        cmake --build ${{github.workspace}}/build --paralle
+        cmake --build ${{github.workspace}}/build
 
     # - name: Check crush on startup
     #   run: |
