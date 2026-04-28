@@ -27,14 +27,14 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Free Disk Space (Windows)
-      if: matrix.os == 'windows-latest'
-      shell: pwsh
-      run: |
-        Get-ChildItem -Path "C:/Program Files/Android" -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
-        Get-ChildItem -Path "C:/Program Files (x86)/Android" -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
-        dotnet nuget locals all --clear
-        Get-PSDrive C
+    # - name: Free Disk Space (Windows)
+    #   if: matrix.os == 'windows-latest'
+    #   shell: pwsh
+    #   run: |
+    #     Get-ChildItem -Path "C:/Program Files/Android" -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
+    #     Get-ChildItem -Path "C:/Program Files (x86)/Android" -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
+    #     dotnet nuget locals all --clear
+    #     Get-PSDrive C
 
 
     - name: Cache vcpkg (Windows)

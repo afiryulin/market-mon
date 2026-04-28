@@ -1,3 +1,4 @@
+#include <thread>
 #include <spdlog/spdlog.h>
 #include "../include/AsyncMarketServer.h"
 #include "../include/SubscriberManager.h"
