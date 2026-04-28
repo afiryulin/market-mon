@@ -26,7 +26,8 @@ void AsyncMarketServer::Run(const std::string &address)
     new GetPriceCallData(&mService, mCompletionQueue.get());
     new TradeCallData(&mService, mCompletionQueue.get());
 
-    const uint THREADS = std::thread::hardware_concurrency();
+    // const uint THREADS = std::thread::hardware_concurrency();
+    const uint THREADS = 10u;
     for (int i = 0; i < THREADS; i++)
     {
         std::thread(&AsyncMarketServer::HandleCall, this).detach();
