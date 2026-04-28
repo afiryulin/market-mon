@@ -1,4 +1,5 @@
 #include <thread>
+#include <cstddef>
 #include <spdlog/spdlog.h>
 #include "../include/AsyncMarketServer.h"
 #include "../include/SubscriberManager.h"
@@ -27,7 +28,7 @@ void AsyncMarketServer::Run(const std::string &address)
     new TradeCallData(&mService, mCompletionQueue.get());
 
     // const uint THREADS = std::thread::hardware_concurrency();
-    const uint THREADS = 10u;
+    const size_t THREADS = 10;
     for (int i = 0; i < THREADS; i++)
     {
         std::thread(&AsyncMarketServer::HandleCall, this).detach();

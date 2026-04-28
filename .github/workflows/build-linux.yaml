@@ -76,8 +76,9 @@ jobs:
           -Password "${{ secrets.GITHUB_TOKEN }}" `
           -StorePasswordInClearText
 
-        echo "VCPKG_BINARY_SOURCES=clear;nuget,${{ env.FEED_URL }},readwrite" >> $env:GITHUB_ENV
-        echo "NUGET_EXE_NO_PROMPT=true" >> $env:GITHUB_ENV
+        "VCPKG_BINARY_SOURCES=clear;nuget,${{ env.FEED_URL }},readwrite" | Out-File -FilePath $env:GITHUB_ENV -Append
+        "NUGET_EXE_NO_PROMPT=true" | Out-File -FilePath $env:GITHUB_ENV -Append
+        "NUGET_PLUGIN_PATHS=" | Out-File -FilePath $env:GITHUB_ENV -Append
 
     - name: Install gRPC (Windows)
       if: matrix.os == 'windows-latest'
@@ -93,7 +94,7 @@ jobs:
       if: matrix.os == 'windows-latest'
       shell : pwsh
       run: |
-        cmake -B build -S . `
+        cmake -B build -G Ninja -S . `
           -DCMAKE_TOOLCHAIN_FILE="$($env:VCPKG_INSTALLATION_ROOT)/scripts/buildsystems/vcpkg.cmake" `
           -DVCPKG_TARGET_TRIPLET=x64-windows `
           -DCPM_USE_LOCAL_PACKAGES=ON
