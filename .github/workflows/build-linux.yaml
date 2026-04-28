@@ -22,7 +22,8 @@ jobs:
 
     container: >-
       ${{ matrix.container_enabled && format('ghcr.io/{0}/{1}/ci-base:latest', github.repository_owner, github.event.repository.name) || null }}
-
+    env:
+      FEED_URL: https://nuget.pkg.github.com/${{github.repository_owner}}/index.json
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -39,14 +40,16 @@ jobs:
 
     - name: Cache vcpkg (Windows)
       if: matrix.os == 'windows-latest'
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
-        path: $VCPKG_INSTALLATION_ROOT/installed
-        key: ${{ runner.os }}-vcpkg-${{ hashFiles('**/vcpkg.json', 'CMakeLists.txt') }}
+        path: |
+          ${{ env.VCPKG_INSTALLATION_ROOT }}/installed
+          ${{ github.workspace }}/build/vcpkg_installed
+        key: ${{ runner.os }}-vcpkg-${{ hashFiles('**/vcpkg.json') }}
         restore-keys: ${{ runner.os }}-vcpkg-
 
     - name: Cache Build folder
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ${{github.workspace}}/build
         key: ${{ runner.os }}-build-incremental-${{ hashFiles('**/CMakeLists.txt', '**.proto') }}-${{ github.run_id }}
@@ -54,12 +57,36 @@ jobs:
           ${{ runner.os }}-build-incremental-l-${{ hashFiles('**/CMakeLists.txt', '**.proto') }}-
           ${{ runner.os }}-build-incremental-
 
+    - name: Setup NuGet for vcpkg cache
+      if: matrix.os == 'windows-latest'
+      shell: pwsh
+      run: |
+        $owner = "${{ github.repository_owner }}".ToLower()
+        $sourceUrl = "${{ env.FEED_URL }}"
+
+        $sourceExists = nuget sources list | Select-String "GitHub"
+        if ($sourceExists) {
+            nuget sources remove -Name "GitHub"
+        }
+
+        nuget sources add `
+          -Source "$sourceUrl" `
+          -Name "GitHub" `
+          -UserName "${{ github.actor }}" `
+          -Password "${{ secrets.GITHUB_TOKEN }}" `
+          -StorePasswordInClearText
+
+        echo "VCPKG_BINARY_SOURCES=clear;nuget,${{ env.FEED_URL }},readwrite" >> $env:GITHUB_ENV
+        echo "NUGET_EXE_NO_PROMPT=true" >> $env:GITHUB_ENV
+
     - name: Install gRPC (Windows)
       if: matrix.os == 'windows-latest'
+      shell: pwsh
       run: |
         $tripletPath = "$($env:VCPKG_INSTALLATION_ROOT)/triplets/x64-windows.cmake"
-        Add-Content -Path $tripletPath -Value "set(VCPKG_BUILD_TYPE release)"
-        Get-Content $tripletPath -Tail 1
+        if (!(Select-String "VCPKG_BUILD_TYPE" $tripletPath)) {
+            Add-Content -Path $tripletPath -Value "`nset(VCPKG_BUILD_TYPE release)"
+        }
         vcpkg install --triplet x64-windows
 
     - name: Configure CMake (Windows)
@@ -67,7 +94,7 @@ jobs:
       shell : pwsh
       run: |
         cmake -B build -S . `
-          -DCMAKE_TOOLCHAIN_FILE="C:/vcpkg/scripts/buildsystems/vcpkg.cmake" `
+          -DCMAKE_TOOLCHAIN_FILE="$($env:VCPKG_INSTALLATION_ROOT)/scripts/buildsystems/vcpkg.cmake" `
           -DVCPKG_TARGET_TRIPLET=x64-windows `
           -DCPM_USE_LOCAL_PACKAGES=ON
 
