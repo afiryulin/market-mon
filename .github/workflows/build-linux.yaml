@@ -1,0 +1,84 @@
+name: C++ Build
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            container_enabled: true
+          - os: windows-latest
+            container_enabled: false
+
+    container: >-
+      ${{ matrix.container_enabled && format('ghcr.io/{0}/{1}/ci-base:latest', github.repository_owner, github.event.repository.name) || null }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Free Disk Space (Windows)
+      if: matrix.os == 'windows-latest'
+      shell: pwsh
+      run: |
+        Get-ChildItem -Path "C:/Program Files/Android" -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
+        Get-ChildItem -Path "C:/Program Files (x86)/Android" -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
+        dotnet nuget locals all --clear
+        Get-PSDrive C
+
+
+    - name: Cache vcpkg (Windows)
+      if: matrix.os == 'windows-latest'
+      uses: actions/cache@v3
+      with:
+        path: $VCPKG_INSTALLATION_ROOT/installed
+        key: ${{ runner.os }}-vcpkg-${{ hashFiles('**/vcpkg.json', 'CMakeLists.txt') }}
+        restore-keys: ${{ runner.os }}-vcpkg-
+
+    - name: Cache Build folder
+      uses: actions/cache@v3
+      with:
+        path: ${{github.workspace}}/build
+        key: ${{ runner.os }}-build-incremental-${{ hashFiles('**/CMakeLists.txt', '**.proto') }}-${{ github.run_id }}
+        restore-keys: |
+          ${{ runner.os }}-build-incremental-l-${{ hashFiles('**/CMakeLists.txt', '**.proto') }}-
+          ${{ runner.os }}-build-incremental-
+
+    - name: Install gRPC (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        $tripletPath = "$($env:VCPKG_INSTALLATION_ROOT)/triplets/x64-windows.cmake"
+        Add-Content -Path $tripletPath -Value "set(VCPKG_BUILD_TYPE release)"
+        Get-Content $tripletPath -Tail 1
+        vcpkg install --triplet x64-windows
+
+    - name: Configure CMake (Windows)
+      if: matrix.os == 'windows-latest'
+      shell : pwsh
+      run: |
+        cmake -B build -S . `
+          -DCMAKE_TOOLCHAIN_FILE="C:/vcpkg/scripts/buildsystems/vcpkg.cmake" `
+          -DVCPKG_TARGET_TRIPLET=x64-windows `
+          -DCPM_USE_LOCAL_PACKAGES=ON
+
+    - name: Configure CMake (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      run: cmake -S . -B ${{github.workspace}}/build -G Ninja
+
+    - name: Build
+      run: |
+        cmake --build ${{github.workspace}}/build
+
+    # - name: Check crush on startup
+    #   run: |
+    #     timeout 3s ${{github.workspace}}/build/server/market_server || [ $? eq 124 ]

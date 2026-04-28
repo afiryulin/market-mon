@@ -1,4 +1,5 @@
 {
+<<<<<<< HEAD
     "name" : "dev-container",
     "build" : {
         "dockerfile": "../docker/dev-container.Dockerfile",
@@ -9,6 +10,12 @@
         "--name", "market-mon-dev",
         "--rm"
     ],
+=======
+    "name" : "Market Monitor Dev Container",
+    // "dockerFile": "../docker/dev-container.Dockerfile",
+    "dockerFile": "../docker/ci-base.Dockerfile",
+
+>>>>>>> 9785e5b ([CI] Add CMake to final version)
 
     "features": {
         "ghcr.io/devcontainers/features/common-utils": {

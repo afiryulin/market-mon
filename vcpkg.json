@@ -1,0 +1,11 @@
+{
+  "name": "market-monitor",
+  "version-string": "0.1.0",
+  "dependencies": [
+    "grpc",
+    "protobuf",
+    "re2",
+    "abseil",
+    "zlib"
+  ]
+}
