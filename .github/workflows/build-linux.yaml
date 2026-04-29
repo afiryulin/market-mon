@@ -27,6 +27,12 @@ jobs:
     - name: Configure CMake
       run: cmake -S . -B ${{github.workspace}}/build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCPM_USE_LOCAL_PACKAGES=ON
 
+    - name: Compile proto files
+      run: cmake --build ${{github.workspace}}/build --target market_proto
+
+    - name: Run Linter (Clang-Tidy)
+      run: run-clang-tidy -p ${{ github.workspace }}/build "client/src/.*" "server/src/.*"
+
     - name: Build
       run: |
         cmake --build ${{github.workspace}}/build
