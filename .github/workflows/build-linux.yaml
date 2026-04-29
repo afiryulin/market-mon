@@ -20,6 +20,10 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Check formatting
+      run: |
+        find client server proto common -name "*.cpp" -o -name "*.h" | clang-format-20 --dry-run -Werror --style=file
+
     - name: Configure CMake
       run: cmake -S . -B ${{github.workspace}}/build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCPM_USE_LOCAL_PACKAGES=ON
 
