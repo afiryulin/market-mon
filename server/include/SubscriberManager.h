@@ -1,7 +1,7 @@
 #pragma once
 #include <mutex>
-#include <vector>
 #include <string>
+#include <vector>
 
 class SubscribePriceCallData;
 

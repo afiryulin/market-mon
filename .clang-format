@@ -1,0 +1,18 @@
+BasedOnStyle: LLVM
+IndentWidth: 4
+AccessModifierOffset: -4
+ColumnLimit: 100
+Standard: Latest
+# Keep your code modern
+Cpp11BracedListStyle: true
+# Handling Braces (Allman style is popular for readability)
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterClass: true
+  AfterControlStatement: true
+  AfterEnum: true
+  AfterFunction: true
+  AfterNamespace: false
+  BeforeElse: true
+# Clean up includes automatically
+SortIncludes: true

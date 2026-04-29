@@ -1,8 +1,8 @@
 #include <algorithm>
 #include <spdlog/spdlog.h>
 
-#include "../include/SubscriberManager.h"
 #include "../include/SubscribePriceCallData.h"
+#include "../include/SubscriberManager.h"
 
 SubscriberManager &SubscriberManager::Instance()
 {
@@ -21,9 +21,8 @@ void SubscriberManager::RemoveSubscriber(SubscribePriceCallData *subscriber)
     spdlog::info("SubscriberManager::RemoveSubscriber");
 
     std::lock_guard<std::mutex> locker(mMutex);
-    mSubscribers.erase(
-        std::remove(mSubscribers.begin(), mSubscribers.end(), subscriber),
-        mSubscribers.end());
+    mSubscribers.erase(std::remove(mSubscribers.begin(), mSubscribers.end(), subscriber),
+                       mSubscribers.end());
 }
 
 void SubscriberManager::BroadcastPrice(const std::string &symbol, double value)
