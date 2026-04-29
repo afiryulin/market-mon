@@ -1,7 +1,7 @@
 #pragma once
 
-#include <grpcpp/grpcpp.h>
 #include "market/v1/market.grpc.pb.h"
+#include <grpcpp/grpcpp.h>
 
 #include "PriceGenerator.h"
 

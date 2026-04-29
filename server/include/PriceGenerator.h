@@ -1,9 +1,9 @@
 #pragma once
 
+#include <atomic>
 #include <functional>
 #include <string>
 #include <thread>
-#include <atomic>
 
 class PriceGenerator final
 {

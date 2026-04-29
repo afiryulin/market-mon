@@ -3,12 +3,9 @@
 #include "../include/TradeCallData.h"
 #include "spdlog/spdlog.h"
 
-TradeCallData::TradeCallData(MarketService::AsyncService *service, ServerCompletionQueue *completionQueue)
-    : mService(service),
-      mCompletionQueue(completionQueue),
-      mContext{},
-      mRequest{},
-      mResponse{}
+TradeCallData::TradeCallData(MarketService::AsyncService *service,
+                             ServerCompletionQueue *completionQueue)
+    : mService(service), mCompletionQueue(completionQueue), mContext{}, mRequest{}, mResponse{}
 {
     mStream = std::make_unique<ServerAsyncReaderWriter<TradeEvent, TradeRequest>>(&mContext);
 
@@ -27,10 +24,7 @@ void TradeCallData::ProcessData(bool ok)
     if (eState::CREATE == mState)
     {
         mState = eState::CONNECTED;
-        mService->RequestTradeStream(&mContext,
-                                     mStream.get(),
-                                     mCompletionQueue,
-                                     mCompletionQueue,
+        mService->RequestTradeStream(&mContext, mStream.get(), mCompletionQueue, mCompletionQueue,
                                      this);
 
         return;
@@ -47,7 +41,8 @@ void TradeCallData::ProcessData(bool ok)
 
     if (eState::READ == mState)
     {
-        spdlog::info("Trade Order: {} {} {}", mRequest.symbol(), mRequest.quantity(), mRequest.is_buy() ? "BUY" : "SELL");
+        spdlog::info("Trade Order: {} {} {}", mRequest.symbol(), mRequest.quantity(),
+                     mRequest.is_buy() ? "BUY" : "SELL");
 
         TradeEvent response{};
         response.set_symbol(mRequest.symbol());

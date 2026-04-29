@@ -4,7 +4,8 @@
 class GetPriceCallData final : public ICallDataBase
 {
 public:
-    GetPriceCallData(market::v1::MarketService::AsyncService *service, grpc::ServerCompletionQueue *completionQueue);
+    GetPriceCallData(market::v1::MarketService::AsyncService *service,
+                     grpc::ServerCompletionQueue *completionQueue);
     void ProcessData(bool ok) override;
 
 private:

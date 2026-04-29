@@ -1,9 +1,9 @@
 #pragma once
 
-#include <queue>
-#include <mutex>
 #include <atomic>
 #include <grpcpp/grpcpp.h>
+#include <mutex>
+#include <queue>
 
 #include "ICallDataBase.h"
 #include "market/v1/market.grpc.pb.h"

@@ -1,5 +1,5 @@
-#include <random>
 #include <chrono>
+#include <random>
 
 #include "../include/PriceGenerator.h"
 #include "../include/SubscriberManager.h"
@@ -19,10 +19,7 @@ void PriceGenerator::Stop()
     }
 }
 
-void PriceGenerator::SetCallback(Callback fn)
-{
-    mCallback = std::move(fn);
-}
+void PriceGenerator::SetCallback(Callback fn) { mCallback = std::move(fn); }
 
 void PriceGenerator::RunInternal()
 {

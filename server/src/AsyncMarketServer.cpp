@@ -1,17 +1,17 @@
-#include <thread>
-#include <cstddef>
-#include <spdlog/spdlog.h>
 #include "../include/AsyncMarketServer.h"
-#include "../include/SubscriberManager.h"
+#include "../include/GetPriceCallData.h"
 #include "../include/SubscribePriceCallData.h"
 #include "../include/SubscriberManager.h"
-#include "../include/GetPriceCallData.h"
 #include "../include/TradeCallData.h"
+#include <cstddef>
+#include <spdlog/spdlog.h>
+#include <thread>
 
 void AsyncMarketServer::Run(const std::string &address)
 {
-    mPriceGenerator.SetCallback([](const std::string &symbol, double value)
-                                { SubscriberManager::Instance().BroadcastPrice(symbol, value); });
+    mPriceGenerator.SetCallback([](const std::string &symbol, double value) {
+        SubscriberManager::Instance().BroadcastPrice(symbol, value);
+    });
     mPriceGenerator.Start();
 
     grpc::ServerBuilder serverBuilder;

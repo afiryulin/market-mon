@@ -1,13 +1,12 @@
 #include "../include/GetPriceCallData.h"
 #include <grpcpp/support/async_unary_call.h>
 
-GetPriceCallData::GetPriceCallData(
-    market::v1::MarketService::AsyncService *service,
-    grpc::ServerCompletionQueue *completionQueue)
-    : mService(service),
-      mCompletionQueue(completionQueue)
+GetPriceCallData::GetPriceCallData(market::v1::MarketService::AsyncService *service,
+                                   grpc::ServerCompletionQueue *completionQueue)
+    : mService(service), mCompletionQueue(completionQueue)
 {
-    mResponder = std::make_unique<grpc::ServerAsyncResponseWriter<market::v1::PriceResponse>>(&mContext);
+    mResponder =
+        std::make_unique<grpc::ServerAsyncResponseWriter<market::v1::PriceResponse>>(&mContext);
 
     ProcessData(true);
 }
@@ -24,12 +23,8 @@ void GetPriceCallData::ProcessData(bool ok)
     {
         mState = eState::PROCESS;
 
-        mService->RequestGetPrice(&mContext,
-                                  &mRequest,
-                                  mResponder.get(),
-                                  mCompletionQueue,
-                                  mCompletionQueue,
-                                  this);
+        mService->RequestGetPrice(&mContext, &mRequest, mResponder.get(), mCompletionQueue,
+                                  mCompletionQueue, this);
 
         return;
     }

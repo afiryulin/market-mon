@@ -2,15 +2,14 @@
 
 #include <queue>
 
-#include "market/v1/market.grpc.pb.h"
 #include "ICallDataBase.h"
+#include "market/v1/market.grpc.pb.h"
 
 class SubscribePriceCallData final : public ICallDataBase
 {
 public:
-    SubscribePriceCallData(
-        market::v1::MarketService::AsyncService * /*service*/,
-        grpc::ServerCompletionQueue * /*completionQueue*/);
+    SubscribePriceCallData(market::v1::MarketService::AsyncService * /*service*/,
+                           grpc::ServerCompletionQueue * /*completionQueue*/);
 
     void ProcessData(bool ok) override;
     void PushPrice(const std::string &symbol, double value);

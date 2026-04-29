@@ -2,18 +2,13 @@
 #include <spdlog/spdlog.h>
 
 #include "../include/SubscribePriceCallData.h"
+#include "../include/SubscriberManager.h"
 #include "market/v1/market.pb.h"
 #include <grpcpp/completion_queue.h>
-#include "../include/SubscriberManager.h"
 
-SubscribePriceCallData::SubscribePriceCallData(
-    market::v1::MarketService::AsyncService *service,
-    grpc::ServerCompletionQueue *completionQueue)
-    : mService(service),
-      mCompletionQueue(completionQueue),
-      mContext{},
-      mRequest{},
-      mResponse{}
+SubscribePriceCallData::SubscribePriceCallData(market::v1::MarketService::AsyncService *service,
+                                               grpc::ServerCompletionQueue *completionQueue)
+    : mService(service), mCompletionQueue(completionQueue), mContext{}, mRequest{}, mResponse{}
 {
     mPriceWriter = std::make_unique<grpc::ServerAsyncWriter<market::v1::PriceUpdate>>(&mContext);
     ProcessData(true);
@@ -34,12 +29,8 @@ void SubscribePriceCallData::ProcessData(bool ok)
     if (eState::CREATE == mState)
     {
         mState = eState::PROCESS;
-        mService->RequestSubscribePrices(&mContext,
-                                         &mRequest,
-                                         mPriceWriter.get(),
-                                         mCompletionQueue,
-                                         mCompletionQueue,
-                                         this);
+        mService->RequestSubscribePrices(&mContext, &mRequest, mPriceWriter.get(), mCompletionQueue,
+                                         mCompletionQueue, this);
         return;
     }
 
