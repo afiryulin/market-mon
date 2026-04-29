@@ -23,20 +23,10 @@ jobs:
     container: >-
       ${{ matrix.container_enabled && format('ghcr.io/{0}/{1}/ci-base:latest', github.repository_owner, github.event.repository.name) || null }}
     env:
-      FEED_URL: https://nuget.pkg.github.com/${{github.repository_owner}}/index.json
+      FEED_URL: https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-
-    # - name: Free Disk Space (Windows)
-    #   if: matrix.os == 'windows-latest'
-    #   shell: pwsh
-    #   run: |
-    #     Get-ChildItem -Path "C:/Program Files/Android" -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
-    #     Get-ChildItem -Path "C:/Program Files (x86)/Android" -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
-    #     dotnet nuget locals all --clear
-    #     Get-PSDrive C
-
 
     - name: Cache vcpkg (Windows)
       if: matrix.os == 'windows-latest'
@@ -51,7 +41,7 @@ jobs:
     - name: Cache Build folder
       uses: actions/cache@v4
       with:
-        path: ${{github.workspace}}/build
+        path: ${{ github.workspace }}/build
         key: ${{ runner.os }}-build-incremental-${{ hashFiles('**/CMakeLists.txt', '**.proto') }}-${{ github.run_id }}
         restore-keys: |
           ${{ runner.os }}-build-incremental-l-${{ hashFiles('**/CMakeLists.txt', '**.proto') }}-
@@ -65,9 +55,7 @@ jobs:
         $sourceUrl = "${{ env.FEED_URL }}"
 
         $sourceExists = nuget sources list | Select-String "GitHub"
-        if ($sourceExists) {
-            nuget sources remove -Name "GitHub"
-        }
+        if ($sourceExists) { nuget sources remove -Name "GitHub" }
 
         nuget sources add `
           -Source "$sourceUrl" `
@@ -110,7 +98,7 @@ jobs:
 
     - name: Configure CMake (Linux)
       if: matrix.os == 'ubuntu-latest'
-      run: cmake -S . -B ${{github.workspace}}/build -G Ninja
+      run: cmake -S . -B ${{github.workspace}}/build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCPM_USE_LOCAL_PACHAGES=ON
 
     - name: Build
       run: |
