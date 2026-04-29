@@ -36,5 +36,6 @@ void PriceClient::ReadThreadFn(std::stop_token st, const std::string &symbol)
 
 void PriceClient::Subscribe(const std::string &symbol)
 {
-    mReadThread = std::jthread(&PriceClient::ReadThreadFn, this, symbol);
+    mReadThread = std::jthread([this, symbol](std::stop_token stop)
+                               { ReadThreadFn(stop, symbol); });
 }

@@ -1,7 +1,7 @@
 {
     "name" : "dev-container",
     "build" : {
-        "dockerfile": "../docker/dev-container.Dockerfile",
+        "dockerfile": "../docker/dev-container.Dockerfile"
     },
 
     "image": "market-mon-dev",

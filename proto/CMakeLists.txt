@@ -12,7 +12,7 @@ target_sources(market_proto PRIVATE ${PROTO_SOURCES})
 target_link_libraries(market_proto
     PUBLIC
         protobuf::libprotobuf
-        grpc++
+        gRPC::grpc++
 )
 
 target_include_directories(market_proto

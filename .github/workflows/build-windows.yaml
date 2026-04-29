@@ -1,0 +1,79 @@
+name: C++ Windows Build
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    env:
+      FEED_URL: https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
+      NUGET_EXE_NO_PROMPT: true
+      NUGET_PLUGIN_PATHS: ""
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Cache Build folder
+      uses: actions/cache@v4
+      with:
+        path: ${{ github.workspace }}/build
+        key: win-build-${{ hashFiles('**/CMakeLists.txt', '**.proto', 'vcpkg.json') }}-${{ github.run_id }}
+        restore-keys: |
+          win-build-${{ hashFiles('**/CMakeLists.txt', '**.proto') }}-
+          win-build-
+
+    - name: Setup NuGet for vcpkg cache
+      shell: pwsh
+      run: |
+        $owner = "${{ github.repository_owner }}".ToLower()
+        $sourceUrl = "${{ env.FEED_URL }}"
+
+        $sourceExists = nuget sources list | Select-String "GitHub"
+        if ($sourceExists) { nuget sources remove -Name "GitHub" }
+
+        nuget sources add `
+          -Source "$sourceUrl" `
+          -Name "GitHub" `
+          -UserName "${{ github.actor }}" `
+          -Password "${{ secrets.GITHUB_TOKEN }}" `
+          -StorePasswordInClearText
+
+        "VCPKG_BINARY_SOURCES=clear;nuget,${{ env.FEED_URL }},readwrite" | Out-File -FilePath $env:GITHUB_ENV -Append
+        "NUGET_EXE_NO_PROMPT=true" | Out-File -FilePath $env:GITHUB_ENV -Append
+        "NUGET_PLUGIN_PATHS=" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+    - name: Install gRPC
+      shell: pwsh
+      run: |
+        $tripletPath = "$($env:VCPKG_INSTALLATION_ROOT)/triplets/x64-windows.cmake"
+        if (!(Select-String "VCPKG_BUILD_TYPE" $tripletPath)) {
+            Add-Content -Path $tripletPath -Value "`nset(VCPKG_BUILD_TYPE release)"
+        }
+        vcpkg install --triplet x64-windows
+
+    - name: Set up MSVC
+      uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: x64
+
+    - name: Configure CMake
+      shell : pwsh
+      run: |
+        if (Test-Path build) { Remove-Item -Recurse -Force build }
+
+        cmake -B build -G Ninja -S . `
+          -DCMAKE_BUILD_TYPE=Release `
+          -DCMAKE_TOOLCHAIN_FILE="$($env:VCPKG_INSTALLATION_ROOT)/scripts/buildsystems/vcpkg.cmake" `
+          -DVCPKG_TARGET_TRIPLET=x64-windows `
+          -DCPM_USE_LOCAL_PACKAGES=ON
+
+
+    - name: Build
+      run: |
+        cmake --build ${{github.workspace}}/build
