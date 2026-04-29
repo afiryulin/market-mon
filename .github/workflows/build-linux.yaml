@@ -31,7 +31,9 @@ jobs:
       run: cmake --build ${{github.workspace}}/build --target market_proto
 
     - name: Run Linter (Clang-Tidy)
-      run: run-clang-tidy -p ${{ github.workspace }}/build "client/src/.*" "server/src/.*"
+      run: |
+        sed -i 's|/home/runner/work/market-mon/market-mon|/work|g' build/compile_commands.json
+        run-clang-tidy -p ${{ github.workspace }}/build "client/src/.*" "server/src/.*"
 
     - name: Build
       run: |
