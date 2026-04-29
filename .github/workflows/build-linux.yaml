@@ -1,4 +1,4 @@
-name: C++ Build
+name: C++ Linux Build
 
 on:
   push:
@@ -8,102 +8,21 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
-    name: Build ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            container_enabled: true
-          - os: windows-latest
-            container_enabled: false
+  build-linux:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/${{ github.repository_owner }}/market-mon/ci-base:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
 
-    container: >-
-      ${{ matrix.container_enabled && format('ghcr.io/{0}/{1}/ci-base:latest', github.repository_owner, github.event.repository.name) || null }}
-    env:
-      FEED_URL: https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Cache vcpkg (Windows)
-      if: matrix.os == 'windows-latest'
-      uses: actions/cache@v4
-      with:
-        path: |
-          ${{ env.VCPKG_INSTALLATION_ROOT }}/installed
-          ${{ github.workspace }}/build/vcpkg_installed
-        key: ${{ runner.os }}-vcpkg-${{ hashFiles('**/vcpkg.json') }}
-        restore-keys: ${{ runner.os }}-vcpkg-
-
-    - name: Cache Build folder
-      uses: actions/cache@v4
-      with:
-        path: ${{ github.workspace }}/build
-        key: ${{ runner.os }}-build-incremental-${{ hashFiles('**/CMakeLists.txt', '**.proto') }}-${{ github.run_id }}
-        restore-keys: |
-          ${{ runner.os }}-build-incremental-l-${{ hashFiles('**/CMakeLists.txt', '**.proto') }}-
-          ${{ runner.os }}-build-incremental-
-
-    - name: Setup NuGet for vcpkg cache
-      if: matrix.os == 'windows-latest'
-      shell: pwsh
-      run: |
-        $owner = "${{ github.repository_owner }}".ToLower()
-        $sourceUrl = "${{ env.FEED_URL }}"
-
-        $sourceExists = nuget sources list | Select-String "GitHub"
-        if ($sourceExists) { nuget sources remove -Name "GitHub" }
-
-        nuget sources add `
-          -Source "$sourceUrl" `
-          -Name "GitHub" `
-          -UserName "${{ github.actor }}" `
-          -Password "${{ secrets.GITHUB_TOKEN }}" `
-          -StorePasswordInClearText
-
-        "VCPKG_BINARY_SOURCES=clear;nuget,${{ env.FEED_URL }},readwrite" | Out-File -FilePath $env:GITHUB_ENV -Append
-        "NUGET_EXE_NO_PROMPT=true" | Out-File -FilePath $env:GITHUB_ENV -Append
-        "NUGET_PLUGIN_PATHS=" | Out-File -FilePath $env:GITHUB_ENV -Append
-
-    - name: Install gRPC (Windows)
-      if: matrix.os == 'windows-latest'
-      shell: pwsh
-      run: |
-        $tripletPath = "$($env:VCPKG_INSTALLATION_ROOT)/triplets/x64-windows.cmake"
-        if (!(Select-String "VCPKG_BUILD_TYPE" $tripletPath)) {
-            Add-Content -Path $tripletPath -Value "`nset(VCPKG_BUILD_TYPE release)"
-        }
-        vcpkg install --triplet x64-windows
-
-    - name: Set up MSVC
-      if: matrix.os == 'windows-latest'
-      uses: ilammy/msvc-dev-cmd@v1
-      with:
-        arch: x64
-
-    - name: Configure CMake (Windows)
-      if: matrix.os == 'windows-latest'
-      shell : pwsh
-      run: |
-        if (Test-Path build) { Remove-Item -Recurse -Force build }
-
-        cmake -B build -G Ninja -S . `
-          -DCMAKE_BUILD_TYPE=Release `
-          -DCMAKE_TOOLCHAIN_FILE="$($env:VCPKG_INSTALLATION_ROOT)/scripts/buildsystems/vcpkg.cmake" `
-          -DVCPKG_TARGET_TRIPLET=x64-windows `
-          -DCPM_USE_LOCAL_PACKAGES=ON
-
-    - name: Configure CMake (Linux)
-      if: matrix.os == 'ubuntu-latest'
-      run: cmake -S . -B ${{github.workspace}}/build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCPM_USE_LOCAL_PACHAGES=ON
+    - name: Configure CMake
+      run: cmake -S . -B ${{github.workspace}}/build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCPM_USE_LOCAL_PACKAGES=ON
 
     - name: Build
       run: |
         cmake --build ${{github.workspace}}/build
-
-    # - name: Check crush on startup
-    #   run: |
-    #     timeout 3s ${{github.workspace}}/build/server/market_server || [ $? eq 124 ]
