@@ -27,4 +27,8 @@ RUN cmake -B build -G Ninja \
     -DCMAKE_INSTALL_PREFIX=/usr/local \
     && cmake --build build --target install
 
+RUN apt update && apt install -y \
+    clang-format-20 \
+    clang-tidy
+
 WORKDIR /work
