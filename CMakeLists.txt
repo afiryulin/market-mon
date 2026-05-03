@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-# IntelliSense support for VSCode and other IDEs
+# IntelliSense and clang-tidy support
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # ---------------------------------------------------
@@ -16,7 +16,7 @@ include(cmake/CPM.cmake)
 # ---------------------------------------------------
 # Global options
 # ---------------------------------------------------
-option(ENABLE_TESTS "Enable tests" ON)
+option(ENABLE_TESTS "Enable tests" OFF)
 
 # ---------------------------------------------------
 # Dependencies

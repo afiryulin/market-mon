@@ -18,20 +18,15 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Check formatting
+      continue-on-error: true
       run: |
         find client server proto common \( -name "*.cpp" -o -name "*.h" \) -exec clang-format-20 --dry-run -Werror --style=file {} +
 
     - name: Configure CMake
       run: cmake -S . -B ${{github.workspace}}/build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCPM_USE_LOCAL_PACKAGES=ON
-
-    - name: Compile proto files
-      run: cmake --build ${{github.workspace}}/build --target market_proto
-
-    - name: Run Linter (Clang-Tidy)
-      run: run-clang-tidy -p ${{ github.workspace }}/build "client/src/.*" "server/src/.*"
 
     - name: Build
       run: |

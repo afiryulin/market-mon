@@ -1,0 +1,46 @@
+name: Cpp Linter
+on:
+  push:
+    branches: [ master, main, develop ]
+    paths: ['**.c', '**.cpp', '**.h', '**.hpp', '**.cxx', '**.hxx', '**.cc', '**.hh', '**CMakeLists.txt', '**.cmake']
+  pull_request:
+    branches: [ master, main, develop ]
+    paths: ['**.c', '**.cpp', '**.h', '**.hpp', '**.cxx', '**.hxx', '**.cc', '**.hh', '**CMakeLists.txt', '**.cmake']
+  workflow_dispatch:
+
+jobs:
+  cpp-linter:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/${{ github.repository_owner }}/market-mon/ci-base:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Configure CMake
+        run: cmake -S . -B ${{github.workspace}}/build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCPM_USE_LOCAL_PACKAGES=ON
+
+      - name: Compile proto files
+        run: cmake --build ${{github.workspace}}/build --target market_proto
+
+      - name: Linter
+        uses: cpp-linter/cpp-linter-action@v2.18.0
+        id: linter
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: false
+
+        with:
+          style: "file"
+          database: ${{github.workspace}}/build
+          tidy-checks: ""
+          thread-comments: true
+          step-summary: true
+          tidy-review: true
+          format-review: true
+          passive-reviews: true
+          extra-args: "-std=c++17, -Wall"

@@ -14,6 +14,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     bash-completion \
     nano \
+    pre-commit \
+    gh \
+    mc \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /workspace
