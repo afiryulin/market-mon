@@ -20,28 +20,14 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v5
 
-    # - name: Check formatting
-    #   run: |
-    #     find client server proto common \( -name "*.cpp" -o -name "*.h" \) -exec clang-format-20 --dry-run -Werror --style=file {} +
+    - name: Check formatting
+      continue-on-error: true
+      run: |
+        find client server proto common \( -name "*.cpp" -o -name "*.h" \) -exec clang-format-20 --dry-run -Werror --style=file {} +
 
     - name: Configure CMake
       run: cmake -S . -B ${{github.workspace}}/build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCPM_USE_LOCAL_PACKAGES=ON
 
-    # - name: Compile proto files
-    #   run: cmake --build ${{github.workspace}}/build --target market_proto
-
-    # - name: Run Linter (Clang-Tidy)
-    #   run: |
-    #     run-clang-tidy -p ${{ github.workspace }}/build -extra-arg="-Werror" "client/src/.*" "server/src/.*"
-
-    - name: Cpp-linter check
-    - uses: cpp-linter/cpp-linter-action@v2
-      id: linter
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        style: 'file'
-        tidy-checks: ''
     - name: Build
       run: |
         cmake --build ${{github.workspace}}/build

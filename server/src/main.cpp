@@ -2,8 +2,7 @@
 #include "common/Config.h"
 #include <spdlog/spdlog.h>
 
-int main()
-{
+int main(){
     const std::string address = std::string(SERVICE_HOST_ADDRESS).append(":").append(SERVER_PORT);
     AsyncMarketServer server;
     server.Run(address);
