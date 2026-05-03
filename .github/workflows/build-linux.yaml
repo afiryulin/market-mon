@@ -18,7 +18,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Check formatting
       run: |
@@ -32,8 +32,7 @@ jobs:
 
     - name: Run Linter (Clang-Tidy)
       run: |
-        sed -i 's|/home/runner/work/market-mon/market-mon|/work|g'  ${{ github.workspace }}/git build/compile_commands.json
-        run-clang-tidy -p ${{ github.workspace }}/build "client/src/.*" "server/src/.*"
+        run-clang-tidy -p ${{ github.workspace }}/build -extra-arg="-Werror" "client/src/.*" "server/src/.*"
 
     - name: Build
       run: |

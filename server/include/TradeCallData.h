@@ -12,7 +12,7 @@
 using namespace market::v1;
 using namespace grpc;
 
-class TradeCallData final : public ICallDataBase
+class TradeCallData : public ICallDataBase
 {
 
 public:
