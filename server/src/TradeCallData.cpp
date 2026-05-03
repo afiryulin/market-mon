@@ -14,7 +14,8 @@ TradeCallData::TradeCallData(MarketService::AsyncService *service,
 
 void TradeCallData::ProcessData(bool ok)
 {
-    if (!ok) {
+    if (!ok)
+    {
 
         Finish();
         return;
