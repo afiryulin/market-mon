@@ -24,15 +24,17 @@ void AsyncMarketServer::Run(const std::string &address)
     spdlog::info("Market Server started on {}", address);
 
     new SubscribePriceCallData(&mService, mCompletionQueue.get());
-    new GetPriceCallData(&mService, mCompletionQueue.get());
+    // new GetPriceCallData(&mService, mCompletionQueue.get());
     new TradeCallData(&mService, mCompletionQueue.get());
 
     // const uint THREADS = std::thread::hardware_concurrency();
-    const size_t THREADS = 10;
-    for (int i = 0; i < THREADS; i++)
-    {
-        std::thread(&AsyncMarketServer::HandleCall, this).detach();
-    }
+    // const size_t THREADS = 10;
+    // for (int i = 0; i < THREADS; i++)
+    // {
+    //     std::thread(&AsyncMarketServer::HandleCall, this).detach();
+    // }
+
+    std::thread(&AsyncMarketServer::HandleCall, this).detach();
 }
 
 void AsyncMarketServer::Shutdown()
@@ -51,15 +53,25 @@ void AsyncMarketServer::Shutdown()
 
 void AsyncMarketServer::HandleCall()
 {
+    static std::atomic<uint8_t> threads_counter;
     std::stringstream ss;
     ss << std::this_thread::get_id();
-    spdlog::info("Server's thread [{}] started", ss.str());
+    spdlog::info("Server's thread [{}] started [{}]", ss.str(), threads_counter++);
 
     void *tag;
     bool ok;
 
     while (mCompletionQueue->Next(&tag, &ok))
     {
-        static_cast<ICallDataBase *>(tag)->ProcessData(ok);
+        CallDataTag *dataTag = static_cast<CallDataTag *>(tag);
+
+        if (!dataTag || !dataTag->mParent)
+        {
+            spdlog::error("CQ: CRITICAL - invalid tag or parent");
+        }
+
+        spdlog::info("CQ: Got tag {:p} ({}), ok: {} act: {}", tag, dataTag->mParent->GetTypeName(),
+                     ok, CallDataTag::ToString(dataTag->actionType));
+        dataTag->mParent->ProcessData(dataTag, ok);
     }
 }

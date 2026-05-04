@@ -21,20 +21,16 @@ void SubscriberManager::RemoveSubscriber(SubscribePriceCallData *subscriber)
     spdlog::info("SubscriberManager::RemoveSubscriber");
 
     std::lock_guard<std::mutex> locker(mMutex);
+
     mSubscribers.erase(std::remove(mSubscribers.begin(), mSubscribers.end(), subscriber),
                        mSubscribers.end());
 }
 
 void SubscriberManager::BroadcastPrice(const std::string &symbol, double value)
 {
+    std::lock_guard<std::mutex> locker(mMutex);
 
-    std::vector<SubscribePriceCallData *> buff;
-
-    {
-        std::lock_guard<std::mutex> locker(mMutex);
-        buff = mSubscribers;
-    }
-    for (auto *subscriber : buff)
+    for (auto subscriber : mSubscribers)
     {
         subscriber->PushPrice(symbol, value);
     }

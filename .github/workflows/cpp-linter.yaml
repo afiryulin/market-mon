@@ -43,4 +43,4 @@ jobs:
           tidy-review: true
           format-review: true
           passive-reviews: true
-          extra-args: "-std=c++17, -Wall"
+          extra-args: "-std=c++20, -Wall"

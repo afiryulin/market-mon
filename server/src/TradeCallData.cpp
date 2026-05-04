@@ -9,37 +9,35 @@ TradeCallData::TradeCallData(MarketService::AsyncService *service,
 {
     mStream = std::make_unique<ServerAsyncReaderWriter<TradeEvent, TradeRequest>>(&mContext);
 
-    ProcessData(true);
+    mActiveOps.fetch_add(1, std::memory_order_relaxed);
+    mService->RequestTradeStream(&mContext, mStream.get(), mCompletionQueue, mCompletionQueue,
+                                 &mConnectTag);
 }
 
-void TradeCallData::ProcessData(bool ok)
+void TradeCallData::ProcessData(CallDataTag *tag, bool ok)
 {
-    if (!ok)
+    if (mActiveOps.fetch_sub(1, std::memory_order_acq_rel) == 1)
     {
+        delete this;
+        return;
+    }
 
+    if (!ok || mIsFinished.load(std::memory_order_relaxed))
+    {
         Finish();
+        if (mActiveOps.load(std::memory_order_acquire) == 0)
+            delete this;
         return;
     }
 
-    if (eState::CREATE == mState)
-    {
-        mState = eState::CONNECTED;
-        mService->RequestTradeStream(&mContext, mStream.get(), mCompletionQueue, mCompletionQueue,
-                                     this);
-
-        return;
-    }
-
-    if (eState::CONNECTED == mState)
+    if (eCallDataAction::CONNECT == tag->actionType)
     {
         spdlog::info("TradeStream connected: {}", mContext.peer());
         new TradeCallData(mService, mCompletionQueue);
-
         StartRead();
-        return;
     }
 
-    if (eState::READ == mState)
+    if (eCallDataAction::READ == tag->actionType)
     {
         spdlog::info("Trade Order: {} {} {}", mRequest.symbol(), mRequest.quantity(),
                      mRequest.is_buy() ? "BUY" : "SELL");
@@ -51,33 +49,29 @@ void TradeCallData::ProcessData(bool ok)
 
         EnqueueResponse(response);
         StartRead();
-        return;
     }
 
-    if (eState::WRITE == mState)
+    if (eCallDataAction::WRITE == tag->actionType)
     {
         {
             std::lock_guard<std::mutex> lockWriter(mWriteMutex);
-            mIsWriting.store(false);
+            mIsWriting.store(false, std::memory_order_relaxed);
         }
 
         TryWriteNext();
-        return;
     }
 
-    if (eState::FINISH == mState)
-    {
+    if (mActiveOps.load(std::memory_order_acquire) == 0)
         delete this;
-        return;
-    }
 }
+
 void TradeCallData::StartRead()
 {
-    if (mIsFinished.load())
+    if (mIsFinished.load(std::memory_order_relaxed))
         return;
 
-    mState = eState::READ;
-    mStream->Read(&mRequest, this);
+    mActiveOps.fetch_add(1, std::memory_order_relaxed);
+    mStream->Read(&mRequest, &mReadTag);
 }
 
 void TradeCallData::EnqueueResponse(const TradeEvent &response)
@@ -92,33 +86,28 @@ void TradeCallData::EnqueueResponse(const TradeEvent &response)
 
 void TradeCallData::TryWriteNext()
 {
-    if (mIsFinished.load())
-        return;
-
     std::lock_guard<std::mutex> locker(mWriteMutex);
 
-    if (mIsWriting.load())
+    if (mIsFinished.load(std::memory_order_relaxed) || mIsWriting.load(std::memory_order_relaxed) ||
+        mWriteQueue.empty())
+    {
         return;
+    }
 
-    if (mWriteQueue.empty())
-        return;
-
-    mResponse = mWriteQueue.front();
+    mResponse = std::move(mWriteQueue.front());
     mWriteQueue.pop();
 
-    mIsWriting.store(true);
-    mState = eState::WRITE;
-
-    mStream->Write(mResponse, this);
+    mActiveOps.fetch_add(1, std::memory_order_relaxed);
+    mIsWriting.store(true, std::memory_order_relaxed);
+    mStream->Write(mResponse, &mWriteTag);
 }
 
 void TradeCallData::Finish()
 {
-    if (mIsFinished.load())
+    if (mIsFinished.exchange(true, std::memory_order_seq_cst))
         return;
 
     spdlog::info("TradeStream disconnected: {}", mContext.peer());
-
-    mState = eState::FINISH;
-    mStream->Finish(Status::OK, this);
+    mActiveOps.fetch_add(1, std::memory_order_relaxed);
+    mStream->Finish(Status::OK, &mFinishTag);
 }

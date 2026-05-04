@@ -8,10 +8,10 @@ GetPriceCallData::GetPriceCallData(market::v1::MarketService::AsyncService *serv
     mResponder =
         std::make_unique<grpc::ServerAsyncResponseWriter<market::v1::PriceResponse>>(&mContext);
 
-    ProcessData(true);
+    ProcessData(nullptr, true);
 }
 
-void GetPriceCallData::ProcessData(bool ok)
+void GetPriceCallData::ProcessData(CallDataTag *tag, bool ok)
 {
     if (!ok)
     {

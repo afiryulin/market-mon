@@ -7,7 +7,7 @@
 .venv/
 entities.json
 mempalace.yaml
-
+*-lock.json
 
 
 # Build artifacts

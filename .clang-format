@@ -13,6 +13,8 @@ BraceWrapping:
   AfterEnum: true
   AfterFunction: true
   AfterNamespace: false
+  AfterStruct: true
+  AfterUnion: true
   BeforeElse: true
 # Clean up includes automatically
 SortIncludes: true

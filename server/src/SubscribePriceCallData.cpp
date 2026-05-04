@@ -11,62 +11,48 @@ SubscribePriceCallData::SubscribePriceCallData(market::v1::MarketService::AsyncS
     : mService(service), mCompletionQueue(completionQueue), mContext{}, mRequest{}, mResponse{}
 {
     mPriceWriter = std::make_unique<grpc::ServerAsyncWriter<market::v1::PriceUpdate>>(&mContext);
-    ProcessData(true);
+
+    mService->RequestSubscribePrices(&mContext, &mRequest, mPriceWriter.get(), mCompletionQueue,
+                                     mCompletionQueue, &mCreateTag);
 }
 
-void SubscribePriceCallData::ProcessData(bool ok)
+void SubscribePriceCallData::ProcessData(CallDataTag *tag, bool ok)
 {
-
     if (!ok)
     {
-        spdlog::info("Context status: client {} disconnected", mContext.peer());
-
-        SubscriberManager::Instance().RemoveSubscriber(this);
-        delete this;
-        return;
+        if (!mIsFinished.load())
+        {
+            mIsFinished.store(true);
+            SubscriberManager::Instance().RemoveSubscriber(this);
+            mPriceWriter->Finish(grpc::Status::OK, &mFinishTag);
+        }
     }
 
-    if (eState::CREATE == mState)
+    if (eCallDataAction::CONNECT == tag->actionType)
     {
-        mState = eState::PROCESS;
-        mService->RequestSubscribePrices(&mContext, &mRequest, mPriceWriter.get(), mCompletionQueue,
-                                         mCompletionQueue, this);
-        return;
-    }
 
-    if (eState::PROCESS == mState)
-    {
         spdlog::info("Client subscribe to {}", mRequest.symbol());
 
         new SubscribePriceCallData(mService, mCompletionQueue);
         SubscriberManager::Instance().AddSubscriber(this);
-
-        mState = eState::WRITE;
-        return;
     }
 
-    if (eState::WRITE == mState)
+    if (eCallDataAction::WRITE == tag->actionType)
     {
-        std::lock_guard<std::mutex> locker(mWriteMutex);
         mWriteInProgress.store(false);
         ProcessQueue();
-        return;
     }
 
-    if (eState::FINISH == mState || !ok)
+    if (eCallDataAction::FINISH == tag->actionType)
     {
         spdlog::info("Context status: client {} disconnected", mContext.peer());
-
-        SubscriberManager::Instance().RemoveSubscriber(this);
-        mPriceWriter->Finish(grpc::Status::OK, this);
         delete this;
-        return;
     }
 }
 
 void SubscribePriceCallData::PushPrice(const std::string &symbol, double value)
 {
-    if (eState::FINISH == mState || symbol != mRequest.symbol())
+    if (symbol != mRequest.symbol())
     {
         return;
     }
@@ -90,14 +76,15 @@ void SubscribePriceCallData::PushPrice(const std::string &symbol, double value)
 
 void SubscribePriceCallData::ProcessQueue()
 {
+    std::lock_guard<std::mutex> locker(mWriteMutex);
+
     if (mWriteInProgress.load() || mUpdateQueue.empty())
     {
         return;
     }
 
     mWriteInProgress.store(true);
-
     mResponse = mUpdateQueue.front();
     mUpdateQueue.pop();
-    mPriceWriter->Write(mResponse, this);
+    mPriceWriter->Write(mResponse, &mWriteTag);
 }

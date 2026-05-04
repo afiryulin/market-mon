@@ -4,9 +4,12 @@
 class GetPriceCallData final : public ICallDataBase
 {
 public:
+    REGISTER_CALL_TYPE(GetPriceCallData)
+
     GetPriceCallData(market::v1::MarketService::AsyncService *service,
                      grpc::ServerCompletionQueue *completionQueue);
-    void ProcessData(bool ok) override;
+
+    void ProcessData(CallDataTag *tag, bool ok) override;
 
 private:
     enum class eState
