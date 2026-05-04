@@ -16,17 +16,9 @@ TradeCallData::TradeCallData(MarketService::AsyncService *service,
 
 void TradeCallData::ProcessData(CallDataTag *tag, bool ok)
 {
-    if (mActiveOps.fetch_sub(1, std::memory_order_acq_rel) == 1)
-    {
-        delete this;
-        return;
-    }
-
     if (!ok || mIsFinished.load(std::memory_order_relaxed))
     {
         Finish();
-        if (mActiveOps.load(std::memory_order_acquire) == 0)
-            delete this;
         return;
     }
 

@@ -24,17 +24,14 @@ void AsyncMarketServer::Run(const std::string &address)
     spdlog::info("Market Server started on {}", address);
 
     new SubscribePriceCallData(&mService, mCompletionQueue.get());
-    // new GetPriceCallData(&mService, mCompletionQueue.get());
+    new GetPriceCallData(&mService, mCompletionQueue.get());
     new TradeCallData(&mService, mCompletionQueue.get());
 
-    // const uint THREADS = std::thread::hardware_concurrency();
-    // const size_t THREADS = 10;
-    // for (int i = 0; i < THREADS; i++)
-    // {
-    //     std::thread(&AsyncMarketServer::HandleCall, this).detach();
-    // }
-
-    std::thread(&AsyncMarketServer::HandleCall, this).detach();
+    const size_t THREADS = std::thread::hardware_concurrency();
+    for (int i = 0; i < THREADS; i++)
+    {
+        std::thread(&AsyncMarketServer::HandleCall, this).detach();
+    }
 }
 
 void AsyncMarketServer::Shutdown()
