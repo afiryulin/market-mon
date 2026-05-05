@@ -22,18 +22,23 @@ option(ENABLE_TESTS "Enable tests" OFF)
 # Dependencies
 # ---------------------------------------------------
 
-
 # gRPC
 set(ABSL_ENABLE_INSTALL ON CACHE BOOL "" FORCE)
 
 list(APPEND CMAKE_PREFIX_PATH "/usr/local/lib/cmake/grpc" "/usr/local/lib/cmake/protobuf")
 
 # set(gRPC_AS_DEPENDENCY ON)
-find_package(protobuf CONFIG REQUIRED)
+find_package(protobuf CONFIG QUIET)
+if(NOT protobuf_FOUND)
+    find_package(Protobuf REQUIRED)
+endif()
+
 find_package(gRPC CONFIG REQUIRED)
 
-if(gRPC_FOUND AND protobuf_FOUND)
-    message(STATUS "SUCCESS: System gRPC and protobuf found!")
+message(STATUS "GRPC: " gRPC_FOUND)
+
+if(gRPC_FOUND)
+    message(STATUS "SUCCESS: System gRPC found!")
 
     if(NOT TARGET grpc_cpp_plugin)
         find_program(GRPC_CPP_PLUGIN_EXE grpc_cpp_plugin)

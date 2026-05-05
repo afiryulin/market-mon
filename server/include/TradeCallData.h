@@ -2,8 +2,10 @@
 
 #include <atomic>
 #include <grpcpp/grpcpp.h>
+#include <memory>
 #include <mutex>
 #include <queue>
+#include <unordered_map>
 
 #include "ICallDataBase.h"
 #include "market/v1/market.grpc.pb.h"
@@ -14,30 +16,25 @@ using namespace grpc;
 
 class TradeCallData : public ICallDataBase
 {
-
 public:
+    REGISTER_CALL_TYPE(TradeCallData)
+
     TradeCallData(MarketService::AsyncService *service, ServerCompletionQueue *completionQueue);
 
-    void ProcessData(bool ok) override;
+    void ProcessData(CallDataTag *tag, bool ok) override;
 
 private:
-    enum class eState
-    {
-        CREATE,
-        CONNECTED,
-        READ,
-        WRITE,
-        FINISH
-    };
-
-private:
+    void HandleConnect(bool ok);
+    void HandleRead(bool ok);
+    void HandleWrite(bool ok);
+    void HandleFinish();
     void StartRead();
     void EnqueueResponse(const TradeEvent &response);
     void TryWriteNext();
+    void TryDelete();
     void Finish();
 
 private:
-    eState mState = eState::CREATE;
     MarketService::AsyncService *mService{};
     ServerCompletionQueue *mCompletionQueue{};
     ServerContext mContext;
@@ -51,5 +48,14 @@ private:
     std::queue<TradeEvent> mWriteQueue;
 
     std::atomic<bool> mIsWriting{false};
-    std::atomic<bool> mIsFinished{false};
+    std::atomic<bool> mReadClosed{false};
+    std::atomic<bool> mFinishStarted{false};
+    std::atomic<bool> mFinishCompleted{false};
+    std::atomic<bool> mDeleteStarted{false};
+    std::atomic<int> mActiveOps{0};
+
+    CallDataTag mConnectTag{this, eCallDataAction::CONNECT};
+    CallDataTag mReadTag{this, eCallDataAction::READ};
+    CallDataTag mWriteTag{this, eCallDataAction::WRITE};
+    CallDataTag mFinishTag{this, eCallDataAction::FINISH};
 };

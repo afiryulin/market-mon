@@ -8,23 +8,17 @@
 class SubscribePriceCallData final : public ICallDataBase
 {
 public:
+    REGISTER_CALL_TYPE(SubscribePriceCallData)
+
     SubscribePriceCallData(market::v1::MarketService::AsyncService * /*service*/,
                            grpc::ServerCompletionQueue * /*completionQueue*/);
 
-    void ProcessData(bool ok) override;
+    void ProcessData(CallDataTag *tag, bool ok) override;
     void PushPrice(const std::string &symbol, double value);
 
 private:
     void ProcessQueue();
-    enum class eState
-    {
-        CREATE,
-        PROCESS,
-        WRITE,
-        FINISH
-    };
 
-    eState mState = eState::CREATE;
     market::v1::MarketService::AsyncService *mService;
     grpc::ServerCompletionQueue *mCompletionQueue;
 
@@ -35,5 +29,11 @@ private:
     std::unique_ptr<grpc::ServerAsyncWriter<market::v1::PriceUpdate>> mPriceWriter;
     std::mutex mWriteMutex;
     std::atomic<bool> mWriteInProgress{false};
+    std::atomic<bool> mIsFinished{false};
     std::queue<market::v1::PriceUpdate> mUpdateQueue;
+
+    CallDataTag mCreateTag{this, eCallDataAction::CONNECT};
+    // CallDataTag mReadTag{this, eCallDataAction::READ};
+    CallDataTag mWriteTag{this, eCallDataAction::WRITE};
+    CallDataTag mFinishTag{this, eCallDataAction::FINISH};
 };
