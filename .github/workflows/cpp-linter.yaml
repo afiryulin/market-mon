@@ -43,4 +43,5 @@ jobs:
           tidy-review: true
           format-review: true
           passive-reviews: true
-          extra-args: "-std=c++20, -Wall"
+          extra-args: "-std=c++20 -Wall"
+          version: 18
