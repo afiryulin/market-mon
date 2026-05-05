@@ -2,6 +2,7 @@
 
 #include "market/v1/market.grpc.pb.h"
 #include <grpcpp/channel.h>
+#include <stop_token>
 #include <thread>
 
 class PriceClient final

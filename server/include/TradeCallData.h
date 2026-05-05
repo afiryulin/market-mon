@@ -24,9 +24,14 @@ public:
     void ProcessData(CallDataTag *tag, bool ok) override;
 
 private:
+    void HandleConnect(bool ok);
+    void HandleRead(bool ok);
+    void HandleWrite(bool ok);
+    void HandleFinish();
     void StartRead();
     void EnqueueResponse(const TradeEvent &response);
     void TryWriteNext();
+    void TryDelete();
     void Finish();
 
 private:
@@ -44,7 +49,10 @@ private:
 
     std::atomic<bool> mIsWriting{false};
     std::atomic<bool> mReadClosed{false};
-    std::atomic<bool> mFinishStartd{false};
+    std::atomic<bool> mFinishStarted{false};
+    std::atomic<bool> mFinishCompleted{false};
+    std::atomic<bool> mDeleteStarted{false};
+    std::atomic<int> mActiveOps{0};
 
     CallDataTag mConnectTag{this, eCallDataAction::CONNECT};
     CallDataTag mReadTag{this, eCallDataAction::READ};

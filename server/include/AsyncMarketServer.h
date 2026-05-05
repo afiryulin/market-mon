@@ -2,6 +2,7 @@
 
 #include <grpcpp/grpcpp.h>
 #include <memory>
+#include <stop_token>
 #include <thread>
 #include <vector>
 
