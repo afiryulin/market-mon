@@ -3,7 +3,7 @@
 Cross-platform C++ project demonstrating production-grade gRPC architecture.
 
 ## Stack
-- C++17
+- C++20
 - gRPC / Protobuf
 - Qt (GUI client)
 - CMake

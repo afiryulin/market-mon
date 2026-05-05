@@ -9,21 +9,26 @@ TradeCallData::TradeCallData(MarketService::AsyncService *service,
 {
     mStream = std::make_unique<ServerAsyncReaderWriter<TradeEvent, TradeRequest>>(&mContext);
 
-    mActiveOps.fetch_add(1, std::memory_order_relaxed);
     mService->RequestTradeStream(&mContext, mStream.get(), mCompletionQueue, mCompletionQueue,
                                  &mConnectTag);
 }
 
 void TradeCallData::ProcessData(CallDataTag *tag, bool ok)
 {
-    if (!ok || mIsFinished.load(std::memory_order_relaxed))
-    {
-        Finish();
-        return;
-    }
+    // if (!ok || mIsFinished.load(std::memory_order_relaxed))
+    // {
+    //     Finish();
+    //     return;
+    // }
 
     if (eCallDataAction::CONNECT == tag->actionType)
     {
+        if (!ok)
+        {
+            delete this;
+            return;
+        }
+
         spdlog::info("TradeStream connected: {}", mContext.peer());
         new TradeCallData(mService, mCompletionQueue);
         StartRead();
@@ -31,6 +36,15 @@ void TradeCallData::ProcessData(CallDataTag *tag, bool ok)
 
     if (eCallDataAction::READ == tag->actionType)
     {
+        if (!ok)
+        {
+            spdlog::info("TradeSteam read closed: {}", mContext.peer());
+            mReadClosed.store(true, std::memory_order_release);
+            TryWriteNext();
+            Finish();
+            return;
+        }
+
         spdlog::info("Trade Order: {} {} {}", mRequest.symbol(), mRequest.quantity(),
                      mRequest.is_buy() ? "BUY" : "SELL");
 
@@ -41,28 +55,46 @@ void TradeCallData::ProcessData(CallDataTag *tag, bool ok)
 
         EnqueueResponse(response);
         StartRead();
+        return;
     }
 
     if (eCallDataAction::WRITE == tag->actionType)
     {
+        if (!ok)
+        {
+            spdlog::warn("TradeStream write failed: {}", mContext.peer());
+            mReadClosed.store(true, std::memory_order_release);
+            mIsWriting.store(false, std::memory_order_release);
+            Finish();
+            return;
+        }
+
         {
             std::lock_guard<std::mutex> lockWriter(mWriteMutex);
             mIsWriting.store(false, std::memory_order_relaxed);
         }
 
         TryWriteNext();
+        Finish();
+        return;
     }
 
-    if (mActiveOps.load(std::memory_order_acquire) == 0)
+    if (eCallDataAction::FINISH == tag->actionType)
+    {
+        spdlog::info("TradeStream finished: {}", mContext.peer());
         delete this;
+        return;
+    }
 }
 
 void TradeCallData::StartRead()
 {
-    if (mIsFinished.load(std::memory_order_relaxed))
+    if (mReadClosed.load(std::memory_order_acquire) ||
+        mFinishStartd.load(std::memory_order_acquire))
+    {
         return;
+    }
 
-    mActiveOps.fetch_add(1, std::memory_order_relaxed);
     mStream->Read(&mRequest, &mReadTag);
 }
 
@@ -80,8 +112,8 @@ void TradeCallData::TryWriteNext()
 {
     std::lock_guard<std::mutex> locker(mWriteMutex);
 
-    if (mIsFinished.load(std::memory_order_relaxed) || mIsWriting.load(std::memory_order_relaxed) ||
-        mWriteQueue.empty())
+    if (mFinishStartd.load(std::memory_order_acquire) ||
+        mIsWriting.load(std::memory_order_acquire) || mWriteQueue.empty())
     {
         return;
     }
@@ -89,17 +121,25 @@ void TradeCallData::TryWriteNext()
     mResponse = std::move(mWriteQueue.front());
     mWriteQueue.pop();
 
-    mActiveOps.fetch_add(1, std::memory_order_relaxed);
     mIsWriting.store(true, std::memory_order_relaxed);
     mStream->Write(mResponse, &mWriteTag);
 }
 
 void TradeCallData::Finish()
 {
-    if (mIsFinished.exchange(true, std::memory_order_seq_cst))
+    if (!mReadClosed.load(std::memory_order_acquire))
+        return;
+
+    {
+        std::lock_guard<std::mutex> lock(mWriteMutex);
+
+        if (mIsWriting.load(std::memory_order_acquire) || !mWriteQueue.empty())
+            return;
+    }
+
+    if (mFinishStartd.exchange(true, std::memory_order_acq_rel))
         return;
 
     spdlog::info("TradeStream disconnected: {}", mContext.peer());
-    mActiveOps.fetch_add(1, std::memory_order_relaxed);
     mStream->Finish(Status::OK, &mFinishTag);
 }

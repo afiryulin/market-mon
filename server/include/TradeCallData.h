@@ -43,8 +43,8 @@ private:
     std::queue<TradeEvent> mWriteQueue;
 
     std::atomic<bool> mIsWriting{false};
-    std::atomic<bool> mIsFinished{false};
-    std::atomic<int> mActiveOps{0};
+    std::atomic<bool> mReadClosed{false};
+    std::atomic<bool> mFinishStartd{false};
 
     CallDataTag mConnectTag{this, eCallDataAction::CONNECT};
     CallDataTag mReadTag{this, eCallDataAction::READ};

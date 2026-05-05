@@ -3,6 +3,7 @@
 #include <thread>
 
 #include "../include/AsyncMarketServer.h"
+#include "../include/CallDataFactory.h"
 #include "../include/GetPriceCallData.h"
 #include "../include/SubscribePriceCallData.h"
 #include "../include/SubscriberManager.h"
@@ -15,24 +16,32 @@ void AsyncMarketServer::Run(const std::string &address)
     });
     mPriceGenerator.Start();
 
+    spdlog::info("Market Server started on {}", address);
+
     grpc::ServerBuilder serverBuilder;
     serverBuilder.AddListeningPort(address, grpc::InsecureServerCredentials());
     serverBuilder.RegisterService(&mService);
 
-    mCompletionQueue = serverBuilder.AddCompletionQueue();
+    const auto threads = std::max(1u, std::thread::hardware_concurrency());
+    spdlog::info("Threads concurrency: {}", threads);
+    for (size_t i = 0; i < threads; i++)
+    {
+        mCompletionQueues.emplace_back(serverBuilder.AddCompletionQueue());
+    }
+
     mServer = serverBuilder.BuildAndStart();
 
-    spdlog::info("Market Server started on {}", address);
-
-    new SubscribePriceCallData(&mService, mCompletionQueue.get());
-    new GetPriceCallData(&mService, mCompletionQueue.get());
-    new TradeCallData(&mService, mCompletionQueue.get());
-
-    const size_t THREADS = std::thread::hardware_concurrency() / 2;
-    for (int i = 0; i < THREADS; i++)
+    for (int i = 0; i < threads; i++)
     {
-        std::thread(&AsyncMarketServer::HandleCall, this).detach();
+        auto *completionQueuePtr = mCompletionQueues[i].get();
+        mThreads.emplace_back([this, completionQueuePtr](std::stop_token token) {
+            HandleCall(token, completionQueuePtr);
+        });
     }
+
+    CallDataFactory<MarketService::AsyncService>::SeedQueues<TradeCallData, SubscribePriceCallData,
+                                                             GetPriceCallData>(&mService,
+                                                                               mCompletionQueues);
 }
 
 void AsyncMarketServer::Shutdown()
@@ -42,14 +51,21 @@ void AsyncMarketServer::Shutdown()
     {
         mServer->Shutdown();
     }
-    if (mCompletionQueue)
+
+    for (auto &queue : mCompletionQueues)
     {
-        mCompletionQueue->Shutdown();
+        queue->Shutdown();
     }
+
+    for (auto &thread : mThreads)
+    {
+        thread.request_stop();
+    }
+
     mPriceGenerator.Stop();
 }
 
-void AsyncMarketServer::HandleCall()
+void AsyncMarketServer::HandleCall(std::stop_token stop_token, grpc::ServerCompletionQueue *queue)
 {
     static std::atomic<uint8_t> threads_counter;
     std::stringstream ss;
@@ -59,13 +75,14 @@ void AsyncMarketServer::HandleCall()
     void *tag;
     bool ok;
 
-    while (mCompletionQueue->Next(&tag, &ok))
+    while (!stop_token.stop_requested() && queue->Next(&tag, &ok))
     {
         CallDataTag *dataTag = static_cast<CallDataTag *>(tag);
 
         if (!dataTag || !dataTag->mParent)
         {
             spdlog::error("CQ: CRITICAL - invalid tag or parent");
+            continue;
         }
 
         spdlog::info("CQ: Got tag {:p} ({}), ok: {} act: {}", tag, dataTag->mParent->GetTypeName(),
