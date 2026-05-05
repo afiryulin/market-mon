@@ -1,5 +1,5 @@
 #pragma once
-#include <memory>
+#include <string>
 #include <unordered_map>
 
 enum class eCallDataAction
@@ -18,6 +18,7 @@ struct CallDataTag
 {
     ICallDataBase *mParent;
     eCallDataAction actionType;
+
     static const std::string &ToString(const eCallDataAction act)
     {
         static std::unordered_map<eCallDataAction, std::string> values{

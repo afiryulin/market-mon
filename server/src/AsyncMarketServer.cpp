@@ -1,11 +1,12 @@
+#include <cstddef>
+#include <spdlog/spdlog.h>
+#include <thread>
+
 #include "../include/AsyncMarketServer.h"
 #include "../include/GetPriceCallData.h"
 #include "../include/SubscribePriceCallData.h"
 #include "../include/SubscriberManager.h"
 #include "../include/TradeCallData.h"
-#include <cstddef>
-#include <spdlog/spdlog.h>
-#include <thread>
 
 void AsyncMarketServer::Run(const std::string &address)
 {
@@ -27,7 +28,7 @@ void AsyncMarketServer::Run(const std::string &address)
     new GetPriceCallData(&mService, mCompletionQueue.get());
     new TradeCallData(&mService, mCompletionQueue.get());
 
-    const size_t THREADS = std::thread::hardware_concurrency();
+    const size_t THREADS = std::thread::hardware_concurrency() / 2;
     for (int i = 0; i < THREADS; i++)
     {
         std::thread(&AsyncMarketServer::HandleCall, this).detach();

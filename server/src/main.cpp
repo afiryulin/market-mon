@@ -4,7 +4,6 @@
 
 int main()
 {
-    spdlog::info("hardware_concurrency :{}", std::thread::hardware_concurrency());
     const std::string address = std::string(SERVICE_HOST_ADDRESS).append(":").append(SERVER_PORT);
     AsyncMarketServer server;
     server.Run(address);

@@ -1,3 +1,10 @@
+#include <chrono>
+#include <condition_variable>
+#include <grpcpp/grpcpp.h>
+#include <mutex>
+#include <stop_token>
+#include <thread>
+
 #include <grpcpp/create_channel.h>
 #include <grpcpp/security/credentials.h>
 #include <spdlog/spdlog.h>
@@ -5,12 +12,6 @@
 #include "../common/Config.h"
 #include "PriceClient.h"
 #include "TradeClient.h"
-
-#include <chrono>
-#include <condition_variable>
-#include <grpcpp/grpcpp.h>
-#include <mutex>
-#include <thread>
 
 bool waitChennel(std::shared_ptr<grpc::Channel> channel, int timeout)
 {
@@ -43,6 +44,8 @@ bool waitChennel(std::shared_ptr<grpc::Channel> channel, int timeout)
             break;
         spdlog::info("Connecting... [{} / {}] s", elapsed, timeout);
     }
+    if (checker.joinable())
+        checker.detach();
 
     return connected;
 }

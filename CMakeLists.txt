@@ -22,7 +22,6 @@ option(ENABLE_TESTS "Enable tests" OFF)
 # Dependencies
 # ---------------------------------------------------
 
-
 # gRPC
 set(ABSL_ENABLE_INSTALL ON CACHE BOOL "" FORCE)
 

@@ -1,0 +1,6 @@
+# Suppress data rase in Abseil
+race:absl::*GraphCycles::GetId
+
+# Suppress data rase in gRPC (epoll)
+race:grpc_event_engine::posix_engine::Epoll1Poller
+race:epoll_wait
