@@ -1,3 +1,5 @@
+#include <array>
+#include <random>
 #include <spdlog/spdlog.h>
 #include <thread>
 
@@ -11,33 +13,40 @@ TradeClient::TradeClient(std::shared_ptr<grpc::Channel> channel)
 
 void TradeClient::Run(const std::string &symbol)
 {
+    const uint32_t CLIENTS_COUNT = 15;
+
+    for (size_t i{0}; i < CLIENTS_COUNT; i++)
+    {
+        mClientThreads.emplace_back(std::jthread(
+            [this, i](std::stop_token stop, const std::string symbol) { TradeWriterFn(stop, symbol, i); }, symbol));
+    }
+}
+
+void TradeClient::TradeWriterFn(std::stop_token stop, const std::string &symbol, size_t fakeClientId)
+{
     grpc::ClientContext context;
     auto stream = mMarketStub->TradeStream(&context);
 
-    std::jthread writer = std::jthread(
-        [this, &stream](std::stop_token stop, const std::string symbol) { TradeWriterFn(stop, stream, symbol); },
-        symbol);
+    spdlog::info("ClientTradeData");
 
-    market::v1::TradeEvent ev;
-    while (stream->Read(&ev))
-    {
-        spdlog::info("TRADE Client: {}: {} - {}", ev.symbol(), ev.price(), ev.status());
-    }
+    // std::mt19937 rng(std::random_device{}());
+    // std::uniform_real_distribution<> distr(0, 1000);
 
-    stream->Finish();
-}
+    std::thread reader([&stream]() {
+        market::v1::TradeEvent ev;
+        while (stream->Read(&ev))
+        {
+            spdlog::info("TRADE Event: {} - {}", ev.symbol(), ev.status());
+        }
+    });
 
-void TradeClient::TradeWriterFn(
-    std::stop_token stop,
-    std::unique_ptr<::grpc::ClientReaderWriter<::market::v1::TradeRequest, ::market::v1::TradeEvent>> &stream,
-    const std::string &symbol)
-{
-    for (int i = 0; i < 10; i++)
+    for (int i = 0; i < 50; i++)
     {
         if (stop.stop_requested())
             return;
 
         market::v1::TradeRequest rq;
+        rq.set_clientid(fakeClientId);
         rq.set_symbol(symbol);
         rq.set_quantity(1.0 + i);
         rq.set_is_buy(true);
@@ -50,4 +59,10 @@ void TradeClient::TradeWriterFn(
     }
 
     stream->WritesDone();
+    if (reader.joinable())
+        reader.join();
+
+    auto status = stream->Finish();
+    if (!status.ok())
+        spdlog::error("Stream finished with error: {}", status.error_message());
 }

@@ -15,16 +15,16 @@ public:
         return instance;
     }
 
-    void RegisterQueue(size_t threadIdx, SPSCQueue<TradeNotification> *queue);
+    void RegisterQueue(size_t threadIdx, SPSCQueue<TradeNotification> &queue);
     void Post(size_t threadIdx, const TradeNotification &notification);
 
 private:
     std::array<SPSCQueue<TradeNotification> *, 32> mQueues{nullptr};
 };
 
-inline void NotificationDispatcher::RegisterQueue(size_t threadIdx, SPSCQueue<TradeNotification> *queue)
+inline void NotificationDispatcher::RegisterQueue(size_t threadIdx, SPSCQueue<TradeNotification> &queue)
 {
-    mQueues[threadIdx] = queue;
+    mQueues[threadIdx] = &queue;
 }
 
 inline void NotificationDispatcher::Post(size_t threadIdx, const TradeNotification &notification)

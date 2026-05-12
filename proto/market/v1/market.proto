@@ -28,10 +28,13 @@ message TradeRequest {
   string symbol = 1;
   double quantity = 2;
   bool is_buy = 3;
+  uint32 clientId = 4;
 }
 
 message TradeEvent {
   string symbol = 1;
   double price = 2;
   string status = 3;
+  double quantity = 4;
+  uint32 clientId = 5;
 }

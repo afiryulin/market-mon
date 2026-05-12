@@ -4,8 +4,6 @@
 #include <cstdint>
 #include <spdlog/spdlog.h>
 
-#include "SPSCQueue.h"
-
 struct TradeNotification
 {
     uint32_t clientId;
