@@ -45,3 +45,7 @@ jobs:
           passive-reviews: true
           extra-args: "-std=c++20 -Wall"
           version: 18
+
+      - name: Check linter results
+        if: steps.linter.outputs.lint-result == 'failure'
+        run: exit 1
