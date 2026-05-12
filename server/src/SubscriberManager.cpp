@@ -22,8 +22,7 @@ void SubscriberManager::RemoveSubscriber(SubscribePriceCallData *subscriber)
 
     std::lock_guard<std::mutex> locker(mMutex);
 
-    mSubscribers.erase(std::remove(mSubscribers.begin(), mSubscribers.end(), subscriber),
-                       mSubscribers.end());
+    mSubscribers.erase(std::remove(mSubscribers.begin(), mSubscribers.end(), subscriber), mSubscribers.end());
 }
 
 void SubscriberManager::BroadcastPrice(const std::string &symbol, double value)

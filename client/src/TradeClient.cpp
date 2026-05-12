@@ -15,9 +15,7 @@ void TradeClient::Run(const std::string &symbol)
     auto stream = mMarketStub->TradeStream(&context);
 
     std::jthread writer = std::jthread(
-        [this, &stream](std::stop_token stop, const std::string symbol) {
-            TradeWriterFn(stop, stream, symbol);
-        },
+        [this, &stream](std::stop_token stop, const std::string symbol) { TradeWriterFn(stop, stream, symbol); },
         symbol);
 
     market::v1::TradeEvent ev;
@@ -31,8 +29,7 @@ void TradeClient::Run(const std::string &symbol)
 
 void TradeClient::TradeWriterFn(
     std::stop_token stop,
-    std::unique_ptr<
-        ::grpc::ClientReaderWriter<::market::v1::TradeRequest, ::market::v1::TradeEvent>> &stream,
+    std::unique_ptr<::grpc::ClientReaderWriter<::market::v1::TradeRequest, ::market::v1::TradeEvent>> &stream,
     const std::string &symbol)
 {
     for (int i = 0; i < 10; i++)

@@ -5,16 +5,16 @@
 
 #include "ICallDataBase.h"
 
-template <typename Service> class CallDataFactory
+template <typename Service>
+class CallDataFactory
 {
 public:
     template <IsCallData<Service>... CallDataTypes>
-    static void SeedQueues(Service *service,
-                           const std::vector<std::unique_ptr<grpc::ServerCompletionQueue>> &queues)
+    static void SeedQueues(Service *service, const std::vector<std::unique_ptr<grpc::ServerCompletionQueue>> &queues)
     {
         for (auto &cq : queues)
         {
-            (..., new CallDataTypes(service, cq.get()));
+            (..., new CallDataTypes(service, cq.get())); // NOLINT(clang-analyzer-cplusplus.NewDeleteLeaks)
         }
     }
 };

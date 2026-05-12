@@ -4,15 +4,13 @@
 #include "../include/TradeCallData.h"
 #include "spdlog/spdlog.h"
 
-TradeCallData::TradeCallData(MarketService::AsyncService *service,
-                             ServerCompletionQueue *completionQueue)
+TradeCallData::TradeCallData(MarketService::AsyncService *service, ServerCompletionQueue *completionQueue)
     : mService(service), mCompletionQueue(completionQueue), mContext{}, mRequest{}, mResponse{}
 {
     mStream = std::make_unique<ServerAsyncReaderWriter<TradeEvent, TradeRequest>>(&mContext);
 
     mActiveOps.fetch_add(1, std::memory_order_acq_rel);
-    mService->RequestTradeStream(&mContext, mStream.get(), mCompletionQueue, mCompletionQueue,
-                                 &mConnectTag);
+    mService->RequestTradeStream(&mContext, mStream.get(), mCompletionQueue, mCompletionQueue, &mConnectTag);
 }
 
 void TradeCallData::ProcessData(CallDataTag *tag, bool ok)
@@ -64,8 +62,7 @@ void TradeCallData::HandleRead(bool ok)
         return;
     }
 
-    spdlog::info("Trade Order: {} {} {}", mRequest.symbol(), mRequest.quantity(),
-                 mRequest.is_buy() ? "BUY" : "SELL");
+    spdlog::info("Trade Order: {} {} {}", mRequest.symbol(), mRequest.quantity(), mRequest.is_buy() ? "BUY" : "SELL");
 
     static thread_local std::mt19937 gen(std::random_device{}());
     std::uniform_real_distribution<double> distr(1000.0, 1100.0);
@@ -111,8 +108,7 @@ void TradeCallData::HandleFinish() { mFinishCompleted.store(true, std::memory_or
 
 void TradeCallData::TryDelete()
 {
-    if (!mFinishCompleted.load(std::memory_order_acquire) ||
-        mActiveOps.load(std::memory_order_acquire) != 0)
+    if (!mFinishCompleted.load(std::memory_order_acquire) || mActiveOps.load(std::memory_order_acquire) != 0)
     {
         return;
     }
@@ -125,8 +121,7 @@ void TradeCallData::TryDelete()
 
 void TradeCallData::StartRead()
 {
-    if (mFinishStarted.load(std::memory_order_acquire) ||
-        mReadClosed.load(std::memory_order_acquire))
+    if (mFinishStarted.load(std::memory_order_acquire) || mReadClosed.load(std::memory_order_acquire))
     {
         return;
     }
@@ -149,8 +144,8 @@ void TradeCallData::TryWriteNext()
 {
     std::lock_guard<std::mutex> locker(mWriteMutex);
 
-    if (mFinishStarted.load(std::memory_order_acquire) ||
-        mIsWriting.load(std::memory_order_acquire) || mWriteQueue.empty())
+    if (mFinishStarted.load(std::memory_order_acquire) || mIsWriting.load(std::memory_order_acquire) ||
+        mWriteQueue.empty())
     {
         return;
     }

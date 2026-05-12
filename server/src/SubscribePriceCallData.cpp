@@ -12,8 +12,8 @@ SubscribePriceCallData::SubscribePriceCallData(market::v1::MarketService::AsyncS
 {
     mPriceWriter = std::make_unique<grpc::ServerAsyncWriter<market::v1::PriceUpdate>>(&mContext);
 
-    mService->RequestSubscribePrices(&mContext, &mRequest, mPriceWriter.get(), mCompletionQueue,
-                                     mCompletionQueue, &mCreateTag);
+    mService->RequestSubscribePrices(&mContext, &mRequest, mPriceWriter.get(), mCompletionQueue, mCompletionQueue,
+                                     &mCreateTag);
 }
 
 void SubscribePriceCallData::ProcessData(CallDataTag *tag, bool ok)
