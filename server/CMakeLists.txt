@@ -9,6 +9,7 @@ add_executable(${TARGET_NAME}
     src/PriceGenerator.cpp
     src/GetPriceCallData.cpp
     src/TradeCallData.cpp
+    src/MatchingEngine.cpp
 )
 
 configure_file(

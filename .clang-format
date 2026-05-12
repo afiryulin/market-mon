@@ -1,10 +1,11 @@
 BasedOnStyle: LLVM
 IndentWidth: 4
 AccessModifierOffset: -4
-ColumnLimit: 100
+ColumnLimit: 120
 Standard: Latest
 # Keep your code modern
 Cpp11BracedListStyle: true
+AlwaysBreakTemplateDeclarations: true
 # Handling Braces (Allman style is popular for readability)
 BreakBeforeBraces: Custom
 BraceWrapping:

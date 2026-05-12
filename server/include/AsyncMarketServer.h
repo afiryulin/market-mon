@@ -9,6 +9,8 @@
 #include "market/v1/market.grpc.pb.h"
 
 #include "PriceGenerator.h"
+#include "SPSCQueue.h"
+#include "TradeNotification.h"
 
 class AsyncMarketServer
 {
@@ -17,11 +19,12 @@ public:
     void Shutdown();
 
 private:
-    void HandleCall(std::stop_token stop_token, grpc::ServerCompletionQueue *queue);
+    void HandleCall(std::stop_token stop_token, size_t threadIdx, grpc::ServerCompletionQueue *queue);
 
     std::vector<std::unique_ptr<grpc::ServerCompletionQueue>> mCompletionQueues;
     std::vector<std::jthread> mThreads;
     market::v1::MarketService::AsyncService mService{};
     std::unique_ptr<grpc::Server> mServer;
     PriceGenerator mPriceGenerator;
+    std::vector<std::unique_ptr<SPSCQueue<TradeNotification>>> mTradeResponsesQueue;
 };

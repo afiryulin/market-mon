@@ -22,10 +22,10 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Configure CMake
-        run: cmake -S . -B ${{github.workspace}}/build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCPM_USE_LOCAL_PACKAGES=ON
+        run: cmake -S . -B ${{ github.workspace }}/build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCPM_USE_LOCAL_PACKAGES=ON
 
       - name: Compile proto files
-        run: cmake --build ${{github.workspace}}/build --target market_proto
+        run: cmake --build ${{ github.workspace }}/build --target market_proto
 
       - name: Linter
         uses: cpp-linter/cpp-linter-action@v2.18.0
@@ -36,12 +36,16 @@ jobs:
 
         with:
           style: "file"
-          database: ${{github.workspace}}/build
+          database: ${{ github.workspace }}/build
           tidy-checks: ""
+          tidy-review: true
           thread-comments: true
           step-summary: true
-          tidy-review: true
           format-review: true
           passive-reviews: true
           extra-args: "-std=c++20 -Wall"
-          version: 18
+          version: 20
+
+      - name: Check linter results
+        if: steps.linter.outputs.checks-failed > 0
+        run: exit 1

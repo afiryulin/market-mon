@@ -13,13 +13,13 @@ enum class eCallDataAction
     FINISH
 };
 
-#define REGISTER_CALL_TYPE(ClassName)                                                              \
+#define REGISTER_CALL_TYPE(ClassName)                                                                                  \
     const char *GetTypeName() const override { return #ClassName; }
 
 class ICallDataBase;
 struct CallDataTag
 {
-    ICallDataBase *mParent;
+    ICallDataBase *parent;
     eCallDataAction actionType;
 
     static const std::string_view ToString(const eCallDataAction act)
@@ -56,5 +56,5 @@ public:
 };
 
 template <typename T, typename Service>
-concept IsCallData = std::derived_from<T, ICallDataBase> &&
-                     requires(Service *srv, grpc::ServerCompletionQueue *cq) { new T(srv, cq); };
+concept IsCallData =
+    std::derived_from<T, ICallDataBase> && requires(Service *srv, grpc::ServerCompletionQueue *cq) { new T(srv, cq); };
