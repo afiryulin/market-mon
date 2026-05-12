@@ -39,6 +39,18 @@ void TradeCallData::ProcessData(CallDataTag *tag, bool ok)
     TryDelete();
 }
 
+void TradeCallData::OnTradeNotify(const TradeNotification &note)
+{
+    TradeEvent fillNotify;
+    fillNotify.set_symbol(mRequest.symbol());
+    fillNotify.set_price(note.fillPrice);
+    fillNotify.set_quantity(note.fillQuantity);
+    fillNotify.set_status(note.isFullFill ? "FILLED" : "PARTIALLY_FILLED");
+
+    EnqueueResponse(fillNotify);
+}
+
+uint32_t TradeCallData::GetClientId() const { return mRequest.clientid(); }
 void TradeCallData::HandleConnect(bool ok)
 {
     if (!ok)
@@ -68,7 +80,9 @@ void TradeCallData::HandleRead(bool ok)
     std::uniform_real_distribution<double> distr(1000.0, 1100.0);
 
     TradeEvent response{};
+    response.set_clientid(mRequest.clientid());
     response.set_symbol(mRequest.symbol());
+    response.set_quantity(mRequest.quantity());
     response.set_price(distr(gen));
     response.set_status("ACCEPTED");
 
@@ -134,7 +148,7 @@ void TradeCallData::EnqueueResponse(const TradeEvent &response)
 {
     {
         std::lock_guard<std::mutex> lock(mWriteMutex);
-        mWriteQueue.push(response);
+        mWriteQueue.push(std::move(response));
     }
 
     TryWriteNext();

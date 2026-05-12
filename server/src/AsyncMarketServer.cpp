@@ -47,30 +47,58 @@ void AsyncMarketServer::Run(const std::string &address)
 
 void AsyncMarketServer::HandleCall(std::stop_token stop_token, size_t threadIdx, grpc::ServerCompletionQueue *queue)
 {
-    static std::atomic<uint8_t> threads_counter;
-    std::stringstream ss;
-    ss << std::this_thread::get_id();
-    spdlog::info("Server's thread [{}] started [{}]", ss.str(), threads_counter++);
+    spdlog::info("Server's thread [{}] started.", threadIdx);
+
+    // Local trading session for current thread only without blocking
+    std::unordered_map<uint32_t, TradeCallData *> localTradeSession;
 
     decltype(auto) thisThreadTradeNoteQueue = mTradeResponsesQueue[threadIdx].get();
-    NotificationDispatcher::Instance().RegisterQueue(threadIdx, thisThreadTradeNoteQueue);
+    NotificationDispatcher::Instance().RegisterQueue(threadIdx, *thisThreadTradeNoteQueue);
 
-    void *tag;
-    bool ok;
-
-    while (!stop_token.stop_requested() && queue->Next(&tag, &ok))
+    while (!stop_token.stop_requested())
     {
-        CallDataTag *dataTag = static_cast<CallDataTag *>(tag);
 
-        if (!dataTag || !dataTag->parent)
+        while (auto note = thisThreadTradeNoteQueue->Pop())
         {
-            spdlog::error("CQ: CRITICAL - invalid tag or parent");
-            continue;
+            auto it = localTradeSession.find(note->clientId);
+            if (it != localTradeSession.end())
+            {
+                it->second->OnTradeNotify(*note);
+            }
         }
 
-        spdlog::info("CQ: Got tag {:p} ({}), ok: {} act: {}", tag, dataTag->parent->GetTypeName(), ok,
-                     CallDataTag::ToString(dataTag->actionType));
-        dataTag->parent->ProcessData(dataTag, ok);
+        void *tag;
+        bool ok;
+
+        auto deadline = std::chrono::system_clock::now() + std::chrono::microseconds(100);
+        auto grpcStatus = queue->AsyncNext(&tag, &ok, deadline);
+
+        if (grpcStatus == grpc::CompletionQueue::GOT_EVENT)
+        {
+            CallDataTag *dataTag = static_cast<CallDataTag *>(tag);
+
+            assert(dataTag && dataTag->parent);
+
+            decltype(auto) tradeData = dynamic_cast<TradeCallData *>(dataTag->parent);
+            if (dataTag->actionType == eCallDataAction::READ && ok)
+            {
+                spdlog::info("TradeCall");
+                if (tradeData)
+                {
+                    localTradeSession[tradeData->GetClientId()] = tradeData;
+                }
+            }
+
+            if (!ok || dataTag->actionType == eCallDataAction::FINISH)
+            {
+                if (tradeData)
+                {
+                    localTradeSession.erase(tradeData->GetClientId());
+                }
+            }
+
+            dataTag->parent->ProcessData(dataTag, ok);
+        }
     }
 }
 

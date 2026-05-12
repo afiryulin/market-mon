@@ -5,6 +5,8 @@
 #include <string_view>
 #include <unordered_map>
 
+#include "TradeNotification.h"
+
 enum class eCallDataAction
 {
     CONNECT,
@@ -51,7 +53,6 @@ class ICallDataBase
 public:
     virtual void ProcessData(CallDataTag *tag, bool ok) = 0;
     virtual ~ICallDataBase() = default;
-
     virtual const char *GetTypeName() const = 0;
 };
 

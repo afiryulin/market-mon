@@ -63,8 +63,8 @@ int main()
         return 1;
     }
 
-    PriceClient client{marketChannel};
-    client.Subscribe("ETH");
+    // PriceClient client{marketChannel};
+    // client.Subscribe("ETH");
 
     TradeClient tradeClient{marketChannel};
     tradeClient.Run("ETH");

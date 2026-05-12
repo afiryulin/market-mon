@@ -8,6 +8,7 @@
 #include <unordered_map>
 
 #include "ICallDataBase.h"
+#include "TradeNotification.h"
 #include "market/v1/market.grpc.pb.h"
 #include "market/v1/market.pb.h"
 
@@ -22,6 +23,8 @@ public:
     TradeCallData(MarketService::AsyncService *service, ServerCompletionQueue *completionQueue);
 
     void ProcessData(CallDataTag *tag, bool ok) override;
+    void OnTradeNotify(const TradeNotification &note);
+    uint32_t GetClientId() const;
 
 private:
     void HandleConnect(bool ok);
