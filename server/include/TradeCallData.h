@@ -25,6 +25,8 @@ public:
     void ProcessData(CallDataTag *tag, bool ok) override;
     void OnTradeNotify(const TradeNotification &note);
     uint32_t GetClientId() const;
+    void SetResponseThreadIdx(uint8_t index);
+    void RegisterSessionFromCurrentRequest();
 
 private:
     void HandleConnect(bool ok);
@@ -32,7 +34,7 @@ private:
     void HandleWrite(bool ok);
     void HandleFinish();
     void StartRead();
-    void EnqueueResponse(const TradeEvent &response);
+    void EnqueueResponse(TradeEvent response);
     void TryWriteNext();
     void TryDelete();
     void Finish();
@@ -56,6 +58,10 @@ private:
     std::atomic<bool> mFinishCompleted{false};
     std::atomic<bool> mDeleteStarted{false};
     std::atomic<int> mActiveOps{0};
+
+    std::atomic<bool> mSessionRegistered{false};
+    uint32_t mClientId{0};
+    uint8_t mResponseThreadIdx{0};
 
     CallDataTag mConnectTag{this, eCallDataAction::CONNECT};
     CallDataTag mReadTag{this, eCallDataAction::READ};

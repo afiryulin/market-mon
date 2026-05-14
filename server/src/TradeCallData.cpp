@@ -1,6 +1,7 @@
 #include <memory>
 #include <random>
 
+#include "../include/MatchingEngine.h"
 #include "../include/TradeCallData.h"
 #include "spdlog/spdlog.h"
 
@@ -42,20 +43,33 @@ void TradeCallData::ProcessData(CallDataTag *tag, bool ok)
 void TradeCallData::OnTradeNotify(const TradeNotification &note)
 {
     TradeEvent fillNotify;
-    fillNotify.set_symbol(mRequest.symbol());
+    fillNotify.set_clientid(note.clientId);
+    fillNotify.set_orderid(note.orderId);
+    fillNotify.set_symbol(note.symbol);
     fillNotify.set_price(note.fillPrice);
     fillNotify.set_quantity(note.fillQuantity);
     fillNotify.set_status(note.isFullFill ? "FILLED" : "PARTIALLY_FILLED");
+    fillNotify.set_is_fully_filled(note.isFullFill);
 
-    EnqueueResponse(fillNotify);
+    EnqueueResponse(std::move(fillNotify));
 }
 
-uint32_t TradeCallData::GetClientId() const { return mRequest.clientid(); }
+uint32_t TradeCallData::GetClientId() const { return mClientId; }
+void TradeCallData::SetResponseThreadIdx(uint8_t index) { mResponseThreadIdx = index; }
+void TradeCallData::RegisterSessionFromCurrentRequest()
+{
+    if (mSessionRegistered.exchange(true, std::memory_order_acquire))
+        return;
+
+    mClientId = mRequest.clientid();
+}
+
 void TradeCallData::HandleConnect(bool ok)
 {
     if (!ok)
     {
         mFinishCompleted.store(true, std::memory_order_release);
+        return;
     }
 
     spdlog::info("TradeStream connected: {}", mContext.peer());
@@ -74,19 +88,37 @@ void TradeCallData::HandleRead(bool ok)
         return;
     }
 
+    if (!mSessionRegistered.exchange(true, std::memory_order_acq_rel))
+        mClientId = mRequest.clientid();
+
+    auto &engine = MatchingEngine::Instance();
+    auto &pool = engine.GetPoll();
+
+    uint32_t orderIdx = pool.Allocate();
+    Order &order = pool.Get(orderIdx);
+
+    order.orderId = mRequest.orderid();
+    order.clientId = mClientId;
+    order.responseThreadIdx = mResponseThreadIdx;
+    order.price = mRequest.price();
+    order.quantity = mRequest.quantity();
+    order.side = mRequest.is_buy() ? eSide::BUY : eSide::SELL;
+    order.orderType = mRequest.is_market_order() ? eOrderType::MARKET : eOrderType::LIMIT;
+    std::strncpy(order.symbol, mRequest.symbol().c_str(), sizeof(order.symbol) - 1);
+    order.symbol[sizeof(order.symbol - 1)] = '\0';
+
+    engine.SubmitOrder(orderIdx);
+
     spdlog::info("Trade Order: {} {} {}", mRequest.symbol(), mRequest.quantity(), mRequest.is_buy() ? "BUY" : "SELL");
 
-    static thread_local std::mt19937 gen(std::random_device{}());
-    std::uniform_real_distribution<double> distr(1000.0, 1100.0);
+    TradeEvent accepted{};
+    accepted.set_clientid(mRequest.clientid());
+    accepted.set_symbol(mRequest.symbol());
+    accepted.set_quantity(mRequest.quantity());
+    accepted.set_price(mRequest.price());
+    accepted.set_status("ACCEPTED");
 
-    TradeEvent response{};
-    response.set_clientid(mRequest.clientid());
-    response.set_symbol(mRequest.symbol());
-    response.set_quantity(mRequest.quantity());
-    response.set_price(distr(gen));
-    response.set_status("ACCEPTED");
-
-    EnqueueResponse(response);
+    EnqueueResponse(std::move(accepted));
     StartRead();
     return;
 }
@@ -144,7 +176,7 @@ void TradeCallData::StartRead()
     mStream->Read(&mRequest, &mReadTag);
 }
 
-void TradeCallData::EnqueueResponse(const TradeEvent &response)
+void TradeCallData::EnqueueResponse(TradeEvent response)
 {
     {
         std::lock_guard<std::mutex> lock(mWriteMutex);
