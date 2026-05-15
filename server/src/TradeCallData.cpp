@@ -105,7 +105,7 @@ void TradeCallData::HandleRead(bool ok)
     order.side = mRequest.is_buy() ? eSide::BUY : eSide::SELL;
     order.orderType = mRequest.is_market_order() ? eOrderType::MARKET : eOrderType::LIMIT;
     std::strncpy(order.symbol, mRequest.symbol().c_str(), sizeof(order.symbol) - 1);
-    order.symbol[sizeof(order.symbol - 1)] = '\0';
+    order.symbol[sizeof(order.symbol) - 1] = '\0';
 
     engine.SubmitOrder(orderIdx);
 

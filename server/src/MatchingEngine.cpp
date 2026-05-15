@@ -40,7 +40,7 @@ void MatchingEngine::Start()
 
 void MatchingEngine::Run(std::stop_token stop)
 {
-    uint32_t localQueueHead{0};
+    // uint32_t localQueueHead{0};
 
     while (!stop.stop_requested())
     {
@@ -124,7 +124,7 @@ void MatchingEngine::GenerateTrade(const Order &taker, const Order &maker, uint3
     TradeNotification takerNote;
     takerNote.clientId = taker.clientId;
     takerNote.orderId = taker.orderId;
-    std::strcpy(takerNote.symbol, taker.symbol);
+    std::strncpy(takerNote.symbol, taker.symbol, sizeof(taker.symbol));
     takerNote.fillPrice = taker.price;
     takerNote.fillQuantity = qty;
     takerNote.isFullFill = takerFilled;
@@ -134,7 +134,7 @@ void MatchingEngine::GenerateTrade(const Order &taker, const Order &maker, uint3
     TradeNotification makerNote;
     makerNote.clientId = maker.clientId;
     makerNote.orderId = maker.orderId;
-    std::strcpy(makerNote.symbol, maker.symbol);
+    std::strncpy(makerNote.symbol, maker.symbol, sizeof(maker.symbol));
     makerNote.fillPrice = maker.price;
     makerNote.fillQuantity = qty;
     makerNote.isFullFill = makerFilled;

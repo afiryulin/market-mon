@@ -2,6 +2,7 @@
 
 #include <deque>
 #include <map>
+#include <mutex>
 #include <queue>
 #include <stop_token>
 #include <string>
