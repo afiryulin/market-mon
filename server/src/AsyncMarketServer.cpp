@@ -70,7 +70,7 @@ void AsyncMarketServer::HandleCall(std::stop_token stop_token, size_t threadIdx,
         void *tag;
         bool ok;
 
-        auto deadline = std::chrono::system_clock::now() + std::chrono::microseconds(100);
+        auto deadline = std::chrono::system_clock::now() + std::chrono::milliseconds(5);
         auto grpcStatus = queue->AsyncNext(&tag, &ok, deadline);
 
         if (grpcStatus == grpc::CompletionQueue::GOT_EVENT)
@@ -79,21 +79,25 @@ void AsyncMarketServer::HandleCall(std::stop_token stop_token, size_t threadIdx,
 
             assert(dataTag && dataTag->parent);
 
-            decltype(auto) tradeData = dynamic_cast<TradeCallData *>(dataTag->parent);
-            if (dataTag->actionType == eCallDataAction::READ && ok)
+            if (std::strcmp(dataTag->parent->GetTypeName(), "TradeCallData"))
             {
-                spdlog::info("TradeCall");
-                if (tradeData)
+                auto *tradeData = static_cast<TradeCallData *>(dataTag->parent);
+                if (dataTag->actionType == eCallDataAction::CONNECT && ok)
                 {
-                    localTradeSession[tradeData->GetClientId()] = tradeData;
+                    if (tradeData)
+                    {
+                        tradeData->SetResponseThreadIdx(threadIdx);
+                        tradeData->RegisterSessionFromCurrentRequest();
+                        localTradeSession[tradeData->GetClientId()] = tradeData;
+                    }
                 }
-            }
 
-            if (!ok || dataTag->actionType == eCallDataAction::FINISH)
-            {
-                if (tradeData)
+                if (!ok || dataTag->actionType == eCallDataAction::FINISH)
                 {
-                    localTradeSession.erase(tradeData->GetClientId());
+                    if (tradeData)
+                    {
+                        localTradeSession.erase(tradeData->GetClientId());
+                    }
                 }
             }
 

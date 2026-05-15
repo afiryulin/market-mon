@@ -27,5 +27,5 @@ struct alignas(64) Order final
     uint32_t quantity;                            // 4
     eSide side;                                   // 4
     eOrderType orderType;                         // 4
-    uint8_t threadIdx;                            // 1
+    uint8_t responseThreadIdx;                    // 1
 };

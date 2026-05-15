@@ -12,7 +12,8 @@ public:
     template <IsCallData<Service>... CallDataTypes>
     static void SeedQueues(Service *service, const std::vector<std::unique_ptr<grpc::ServerCompletionQueue>> &queues)
     {
-        for (auto &cq : queues)
+        // NOLINTNEXTLINE(clang-analyzer-cplusplus.NewDeleteLeaks)
+        for (decltype(auto) cq : queues)
         {
             (..., new CallDataTypes(service, cq.get())); // NOLINT(clang-analyzer-cplusplus.NewDeleteLeaks)
         }

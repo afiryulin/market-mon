@@ -26,15 +26,20 @@ message PriceUpdate {
 
 message TradeRequest {
   string symbol = 1;
-  double quantity = 2;
-  bool is_buy = 3;
-  uint32 clientId = 4;
+  double price = 2;
+  uint32 quantity = 3;
+  bool is_buy = 4;
+  uint32 clientId = 5;
+  uint64 orderId = 6;
+  bool is_market_order = 7;
 }
 
 message TradeEvent {
   string symbol = 1;
   double price = 2;
   string status = 3;
-  double quantity = 4;
+  uint32 quantity = 4;
   uint32 clientId = 5;
+  uint64 orderId = 6;
+  bool is_fully_filled = 7;
 }

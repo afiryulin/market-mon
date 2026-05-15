@@ -13,7 +13,7 @@
     ],
 
     "features": {
-        "ghcr.io/devcontainers/features/common-utils": {
+        "ghcr.io/devcontainers/features/common-utils:2.5.8": {
             "installZsh": true,
             "configureZshAsDefaultShell": true,
             "installOhMyZsh": true
@@ -22,7 +22,7 @@
 
     "customizations": {
         "vscode": {
-            "extensions": ["ms-vscode.cpptools", "ms-vscode.cmake-tools"],
+            "extensions": ["ms-vscode.cpptools", "ms-vscode.cmake-tools", "pbkit.vscode-pbkit"],
             "settings": {
                 "terminal.integrated.defaultProfile.linux": "zsh"
             }

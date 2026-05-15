@@ -3,16 +3,23 @@
 #include <cstdint>
 #include <deque>
 #include <map>
+#include <stdexcept>
 #include <vector>
 
 #include "Order.h"
 
-class OrderPull final
+class OrderPool final
 {
 public:
-    explicit OrderPull(const size_t capacity) : mPool{capacity} {}
+    explicit OrderPool(const size_t capacity) : mPool{capacity} {}
 
-    uint32_t Allocate() { return mNextFreeIdx.fetch_add(1, std::memory_order_relaxed); }
+    uint32_t Allocate()
+    {
+        auto index = mNextFreeIdx.fetch_add(1, std::memory_order_relaxed);
+        if (index >= mPool.size())
+            throw std::runtime_error("Order pool exhausted");
+        return index;
+    }
     Order &Get(uint32_t idx) { return mPool[idx]; }
 
 private:

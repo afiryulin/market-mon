@@ -2,6 +2,8 @@
 
 #include <deque>
 #include <map>
+#include <mutex>
+#include <queue>
 #include <stop_token>
 #include <string>
 #include <thread>
@@ -16,7 +18,7 @@ public:
     static MatchingEngine &Instance();
 
     void SubmitOrder(uint32_t orderIdx);
-    OrderPull &GetPoll();
+    OrderPool &GetPoll();
 
     void Start();
 
@@ -26,28 +28,28 @@ private:
     void ProcessOrder(Order &takerOrder, uint32_t takerIdx);
 
     template <typename OpponentMap, typename SelfMap>
-    void ExecuteMatch(Order &takerOrder, uint32_t takerIdx, OpponentMap &opponentBook, SelfMap &selfBook);
+    void ExecuteMatch(Order &takerOrder, uint32_t takerIdx, OpponentMap &opponentBook, SelfMap &selfBook,
+                      eSide takerSide);
 
-    void GenerateTrade(const Order &taker, const Order &maker, uint32_t qty, double price);
+    void GenerateTrade(const Order &taker, const Order &maker, uint32_t qty, double price, bool takerFilled,
+                       bool makerFilled);
 
 private:
     alignas(64) std::atomic<uint32_t> mHeadIdx;
-    OrderPull mOrders;
+    OrderPool mOrders;
     std::unordered_map<std::string, OrderBook> mOrderBook;
 
     std::atomic<bool> mRunning{false};
     std::jthread mThread;
-};
 
-MatchingEngine &MatchingEngine::Instance()
-{
-    static MatchingEngine inst;
-    return inst;
-}
+    // TODO: Implement and apply here MPSCQueue ti avoid race condition and using mutex
+    std::mutex mPendingMutex;
+    std::queue<uint32_t> mPendingOrders;
+};
 
 template <typename OpponentMap, typename SelfMap>
 inline void MatchingEngine::ExecuteMatch(Order &takerOrder, uint32_t takerIdx, OpponentMap &opponentBook,
-                                         SelfMap &selfBook)
+                                         SelfMap &selfBook, eSide takerSide)
 {
     static_assert(std::is_same_v<typename OpponentMap::mapped_type, std::deque<uint32_t>>,
                   "OpponentMap must contain Order as value type");
@@ -58,15 +60,12 @@ inline void MatchingEngine::ExecuteMatch(Order &takerOrder, uint32_t takerIdx, O
     {
         double bestOpponentPrice = it->first;
 
-        // Проверка условия цены (Buy: taker.price >= ask.price | Sell: taker.price <= bid.price)
-        if constexpr (std::is_same_v<OpponentMap, std::map<double, std::deque<uint32_t>>>)
+        if (takerOrder.orderType == eOrderType::LIMIT)
         {
-            if (takerOrder.price < bestOpponentPrice)
-                break; // Too expensive
-        }
-        else
-        {
-            if (takerOrder.price > bestOpponentPrice)
+            if (takerSide == eSide::BUY && takerOrder.price < bestOpponentPrice)
+                break; // Too expansive
+
+            if (takerSide == eSide::SELL && takerOrder.price > bestOpponentPrice)
                 break; // Too cheap
         }
 
@@ -77,11 +76,14 @@ inline void MatchingEngine::ExecuteMatch(Order &takerOrder, uint32_t takerIdx, O
             Order &makerOrder = mOrders.Get(makerIdx);
 
             uint32_t matchedQty = std::min(takerOrder.quantity, makerOrder.quantity);
-            GenerateTrade(takerOrder, makerOrder, matchedQty, bestOpponentPrice);
 
             takerOrder.quantity -= matchedQty;
             makerOrder.quantity -= matchedQty;
 
+            bool takerFilled = takerOrder.quantity == matchedQty;
+            bool makerFilled = makerOrder.quantity == matchedQty;
+
+            GenerateTrade(takerOrder, makerOrder, matchedQty, bestOpponentPrice, takerFilled, makerFilled);
             if (makerOrder.quantity == 0)
             {
                 deque.pop_front();
