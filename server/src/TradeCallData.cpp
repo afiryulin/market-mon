@@ -79,6 +79,7 @@ void TradeCallData::HandleConnect(bool ok)
 
 void TradeCallData::HandleRead(bool ok)
 {
+    spdlog::info("TradeCallData::HandleRead ok=={0}", (ok ? "true" : "false"));
     if (!ok)
     {
         spdlog::info("TradeSteam read closed: {}", mContext.peer());
