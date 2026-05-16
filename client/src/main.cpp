@@ -9,9 +9,9 @@
 #include <grpcpp/security/credentials.h>
 #include <spdlog/spdlog.h>
 
-#include "../common/Config.h"
 #include "PriceClient.h"
 #include "TradeClient.h"
+#include "common/Config.h"
 
 bool waitChennel(std::shared_ptr<grpc::Channel> channel, int timeout)
 {

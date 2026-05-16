@@ -4,6 +4,7 @@
 #include <map>
 #include <mutex>
 #include <queue>
+#include <spdlog/spdlog.h>
 #include <stop_token>
 #include <string>
 #include <thread>
@@ -51,6 +52,8 @@ template <typename OpponentMap, typename SelfMap>
 inline void MatchingEngine::ExecuteMatch(Order &takerOrder, uint32_t takerIdx, OpponentMap &opponentBook,
                                          SelfMap &selfBook, eSide takerSide)
 {
+    spdlog::info("Opponent book size={}, self book size={}", opponentBook.size(), selfBook.size());
+
     static_assert(std::is_same_v<typename OpponentMap::mapped_type, std::deque<uint32_t>>,
                   "OpponentMap must contain Order as value type");
 
@@ -62,6 +65,9 @@ inline void MatchingEngine::ExecuteMatch(Order &takerOrder, uint32_t takerIdx, O
 
         if (takerOrder.orderType == eOrderType::LIMIT)
         {
+            spdlog::info("Added to book idx={} side={} price={} qty={}", takerIdx,
+                         takerOrder.side == eSide::BUY ? "BUY" : "SELL", takerOrder.price, takerOrder.quantity);
+
             if (takerSide == eSide::BUY && takerOrder.price < bestOpponentPrice)
                 break; // Too expansive
 
@@ -69,28 +75,32 @@ inline void MatchingEngine::ExecuteMatch(Order &takerOrder, uint32_t takerIdx, O
                 break; // Too cheap
         }
 
-        decltype(auto) deque = it->second;
-        while (!deque.empty() && takerOrder.quantity > 0)
+        decltype(auto) orderAtPrice = it->second;
+        while (!orderAtPrice.empty() && takerOrder.quantity > 0)
         {
-            uint32_t makerIdx = deque.front();
+            spdlog::info("TryMatch taker={} {} qty={} price={} with best={} queue={}", takerOrder.orderId,
+                         takerOrder.side == eSide::BUY ? "BUY" : "SELL", takerOrder.quantity, takerOrder.price,
+                         bestOpponentPrice, orderAtPrice.size());
+
+            uint32_t makerIdx = orderAtPrice.front();
             Order &makerOrder = mOrders.Get(makerIdx);
 
             uint32_t matchedQty = std::min(takerOrder.quantity, makerOrder.quantity);
 
-            takerOrder.quantity -= matchedQty;
-            makerOrder.quantity -= matchedQty;
-
             bool takerFilled = takerOrder.quantity == matchedQty;
             bool makerFilled = makerOrder.quantity == matchedQty;
+
+            takerOrder.quantity -= matchedQty;
+            makerOrder.quantity -= matchedQty;
 
             GenerateTrade(takerOrder, makerOrder, matchedQty, bestOpponentPrice, takerFilled, makerFilled);
             if (makerOrder.quantity == 0)
             {
-                deque.pop_front();
+                orderAtPrice.pop_front();
             }
         }
 
-        if (deque.empty())
+        if (orderAtPrice.empty())
             it = opponentBook.erase(it);
         else
             break;
@@ -99,5 +109,7 @@ inline void MatchingEngine::ExecuteMatch(Order &takerOrder, uint32_t takerIdx, O
     if (takerOrder.quantity > 0 && takerOrder.orderType == eOrderType::LIMIT)
     {
         selfBook[takerOrder.price].push_back(takerIdx);
+        spdlog::info("Added to book idx={} side={} price={} qty={}", takerIdx, takerSide == eSide::BUY ? "BUY" : "SELL",
+                     takerOrder.price, takerOrder.quantity);
     }
 }

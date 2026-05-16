@@ -22,7 +22,11 @@
 
     "customizations": {
         "vscode": {
-            "extensions": ["ms-vscode.cpptools", "ms-vscode.cmake-tools", "pbkit.vscode-pbkit"],
+            "extensions": [
+                "ms-vscode.cpptools",
+                "ms-vscode.cmake-tools",
+                "pbkit.vscode-pbkit",
+                "kylinideteam.cmake-intellisence"],
             "settings": {
                 "terminal.integrated.defaultProfile.linux": "zsh"
             }

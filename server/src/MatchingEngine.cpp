@@ -15,7 +15,11 @@ MatchingEngine &MatchingEngine::Instance()
 void MatchingEngine::SubmitOrder(uint32_t orderIdx)
 {
 
-    // Order &order = mOrders.Get(orderIdx);
+    Order &order = mOrders.Get(orderIdx);
+    spdlog::info("SubmitOrder idx={} client={} order={} {} {} qty={} price={} type={}", orderIdx, order.clientId,
+                 order.orderId, order.symbol, order.side == eSide::BUY ? "BUY" : "SELL", order.quantity, order.price,
+                 order.orderType == eOrderType::LIMIT ? "LIMIT" : "MARKET");
+
     // order.nextIdx.store(0, std::memory_order_relaxed);
 
     // uint32_t prevIdx = mHeadIdx.exchange(orderIdx, std::memory_order_acq_rel);
@@ -35,12 +39,16 @@ OrderPool &MatchingEngine::GetPoll() { return mOrders; }
 
 void MatchingEngine::Start()
 {
+    if (mRunning.exchange(true))
+        return;
+
     mThread = std::jthread([this](std::stop_token st) { Run(st); });
 }
 
 void MatchingEngine::Run(std::stop_token stop)
 {
     // uint32_t localQueueHead{0};
+    spdlog::info("MatchingEngine::Run");
 
     while (!stop.stop_requested())
     {
@@ -114,28 +122,44 @@ void MatchingEngine::Run(std::stop_token stop)
 
 void MatchingEngine::ProcessOrder(Order &takerOrder, uint32_t takerIdx)
 {
+
+    spdlog::info("ProcessOrder idx={} client={} order={} {} {} qty={} price={} type={}", takerIdx, takerOrder.clientId,
+                 takerOrder.orderId, takerOrder.symbol, takerOrder.side == eSide::BUY ? "BUY" : "SELL",
+                 takerOrder.quantity, takerOrder.price, takerOrder.orderType == eOrderType::LIMIT ? "LIMIT" : "MARKET");
+
     auto &book = mOrderBook[takerOrder.symbol];
-    ExecuteMatch(takerOrder, takerIdx, book.asks, book.bids, takerOrder.side);
+
+    if (takerOrder.side == eSide::BUY)
+    {
+        ExecuteMatch(takerOrder, takerIdx, book.asks, book.bids, eSide::BUY);
+    }
+    else
+    {
+        ExecuteMatch(takerOrder, takerIdx, book.bids, book.asks, eSide::SELL);
+    }
 }
 
 void MatchingEngine::GenerateTrade(const Order &taker, const Order &maker, uint32_t qty, double price, bool takerFilled,
                                    bool makerFilled)
 {
-    TradeNotification takerNote;
+    spdlog::info("TRADE takerClient={} makerClient={} qty={} price={} takerFull={} makerFull={}", taker.clientId,
+                 maker.clientId, qty, price, takerFilled, makerFilled);
+
+    TradeNotification takerNote{};
     takerNote.clientId = taker.clientId;
     takerNote.orderId = taker.orderId;
-    std::strncpy(takerNote.symbol, taker.symbol, sizeof(taker.symbol));
-    takerNote.fillPrice = taker.price;
+    std::strncpy(takerNote.symbol, taker.symbol, sizeof(taker.symbol) - 1);
+    takerNote.fillPrice = price;
     takerNote.fillQuantity = qty;
     takerNote.isFullFill = takerFilled;
 
     NotificationDispatcher::Instance().Post(taker.responseThreadIdx, takerNote);
 
-    TradeNotification makerNote;
+    TradeNotification makerNote{};
     makerNote.clientId = maker.clientId;
     makerNote.orderId = maker.orderId;
-    std::strncpy(makerNote.symbol, maker.symbol, sizeof(maker.symbol));
-    makerNote.fillPrice = maker.price;
+    std::strncpy(makerNote.symbol, maker.symbol, sizeof(maker.symbol) - 1);
+    makerNote.fillPrice = price;
     makerNote.fillQuantity = qty;
     makerNote.isFullFill = makerFilled;
 

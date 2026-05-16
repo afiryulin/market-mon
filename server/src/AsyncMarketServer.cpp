@@ -5,6 +5,7 @@
 #include "../include/AsyncMarketServer.h"
 #include "../include/CallDataFactory.h"
 #include "../include/GetPriceCallData.h"
+#include "../include/MatchingEngine.h"
 #include "../include/SPSCQueue.h"
 #include "../include/SubscribePriceCallData.h"
 #include "../include/SubscriberManager.h"
@@ -18,6 +19,8 @@ void AsyncMarketServer::Run(const std::string &address)
     mPriceGenerator.Start();
 
     spdlog::info("Market Server started on {}", address);
+
+    MatchingEngine::Instance().Start();
 
     grpc::ServerBuilder serverBuilder;
     serverBuilder.AddListeningPort(address, grpc::InsecureServerCredentials());
@@ -60,10 +63,17 @@ void AsyncMarketServer::HandleCall(std::stop_token stop_token, size_t threadIdx,
 
         while (auto note = thisThreadTradeNoteQueue->Pop())
         {
+            spdlog::info("Pop notification threadIdx={} client={} order={} qty={} price={} full={}", threadIdx,
+                         note->clientId, note->orderId, note->fillQuantity, note->fillPrice, note->isFullFill);
+
             auto it = localTradeSession.find(note->clientId);
             if (it != localTradeSession.end())
             {
                 it->second->OnTradeNotify(*note);
+            }
+            else
+            {
+                spdlog::warn("No local thread session for clientId = {}", note->clientId);
             }
         }
 
@@ -79,10 +89,10 @@ void AsyncMarketServer::HandleCall(std::stop_token stop_token, size_t threadIdx,
 
             assert(dataTag && dataTag->parent);
 
-            if (std::strcmp(dataTag->parent->GetTypeName(), "TradeCallData"))
+            if (std::strcmp(dataTag->parent->GetTypeName(), "TradeCallData") == 0)
             {
                 auto *tradeData = static_cast<TradeCallData *>(dataTag->parent);
-                if (dataTag->actionType == eCallDataAction::CONNECT && ok)
+                if (dataTag->actionType == eCallDataAction::READ && ok)
                 {
                     if (tradeData)
                     {

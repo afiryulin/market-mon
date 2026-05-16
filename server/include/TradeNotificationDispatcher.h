@@ -33,6 +33,10 @@ inline void NotificationDispatcher::RegisterQueue(size_t responseThreadIdx, SPSC
 
 inline void NotificationDispatcher::Post(size_t responseThreadIdx, const TradeNotification &notification)
 {
+    spdlog::info("Post notification responseThreadIdx={} client={} order={} qty={} price={} full={}", responseThreadIdx,
+                 notification.clientId, notification.orderId, notification.fillQuantity, notification.fillPrice,
+                 notification.isFullFill);
+
     if (responseThreadIdx >= mQueues.size())
     {
         spdlog::error("Response queue for thread {} is full", responseThreadIdx);
