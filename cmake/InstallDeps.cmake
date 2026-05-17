@@ -67,23 +67,31 @@ endif()
 
 
 # fmt
-CPMAddPackage(
-    NAME fmt
-    GITHUB_REPOSITORY fmtlib/fmt
-    GIT_TAG 11.0.2
-    OPTIONS
-        "FMT_TEST OFF"
-)
+find_package(fmt QUIET)
+if(NOT fmt_FOUND)
+    message(STATUS "fmt NOT found, downloading...")
+    CPMAddPackage(
+        NAME fmt
+        GITHUB_REPOSITORY fmtlib/fmt
+        GIT_TAG 11.0.2
+        OPTIONS
+            "FMT_TEST OFF"
+    )
+endif()
+
+find_package(spdlog QUIET)
 
 # spdlog
-CPMAddPackage(
-    NAME spdlog
-    GITHUB_REPOSITORY gabime/spdlog
-    VERSION 1.17.0
-    OPTIONS
-        "SPDLOG_BUILD_TESTS OFF"
-        "SPDLOG_FMT_EXTERNAL ON"
-)
+if(NOT spdlog_FOUND)
+    CPMAddPackage(
+        NAME spdlog
+        GITHUB_REPOSITORY gabime/spdlog
+        VERSION 1.17.0
+        OPTIONS
+            "SPDLOG_BUILD_TESTS OFF"
+            "SPDLOG_FMT_EXTERNAL ON"
+    )
+endif()
 
 # yaml-cpp
 # CPMAddPackage(

@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     clang-format-20 \
     clang-tidy-20 \
+    libspdlog-dev libfmt-dev \
     gnupg \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
