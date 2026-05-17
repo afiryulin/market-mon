@@ -35,6 +35,22 @@ void MatchingEngine::SubmitOrder(uint32_t orderIdx)
     }
 }
 
+bool MatchingEngine::CancelOrder(uint64_t orderId)
+{
+    std::lock_guard<std::mutex> lock(mOrderIndexMutex);
+    auto it = mOrderIndex.find(orderId);
+
+    if (it == mOrderIndex.end())
+        return false;
+
+    Order &order = mOrders.Get(it->second);
+    order.cancelled.store(true, std::memory_order_release);
+
+    mOrderIndex.erase(it);
+
+    return true;
+}
+
 OrderPool &MatchingEngine::GetPoll() { return mOrders; }
 
 void MatchingEngine::Start()

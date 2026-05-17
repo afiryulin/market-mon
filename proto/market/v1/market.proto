@@ -24,14 +24,25 @@ message PriceUpdate {
   uint64 timestamp = 3;
 }
 
+enum TradeRequestType {
+  UNDEFINED = 0;
+  NEW_ORDER = 1;
+  CANCEL_ORDER = 2;
+}
+
 message TradeRequest {
-  string symbol = 1;
-  double price = 2;
-  uint32 quantity = 3;
-  bool is_buy = 4;
-  uint32 clientId = 5;
-  uint64 orderId = 6;
-  bool is_market_order = 7;
+  TradeRequestType type = 1;
+
+  string symbol = 2;
+  double price = 3;
+  uint32 quantity = 4;
+
+  bool is_buy = 5;
+  bool is_market_order = 6;
+
+  uint32 clientId = 7;
+  uint64 orderId = 8;
+
 }
 
 message TradeEvent {

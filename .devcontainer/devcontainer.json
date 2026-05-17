@@ -34,6 +34,7 @@
         }
     },
     "remoteUser": "ubuntu",
+    "containerUser": "ubuntu",
     "updateRemoteUserUID": true,
     "workspaceFolder": "/work",
     "workspaceMount": "source=${localWorkspaceFolder},target=/work,type=bind",
