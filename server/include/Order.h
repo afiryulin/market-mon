@@ -28,4 +28,5 @@ struct alignas(64) Order final
     eSide side;                                   // 4
     eOrderType orderType;                         // 4
     uint8_t responseThreadIdx;                    // 1
+    std::atomic<bool> cancelled{false};           // 1
 };

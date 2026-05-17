@@ -19,6 +19,7 @@ public:
     static MatchingEngine &Instance();
 
     void SubmitOrder(uint32_t orderIdx);
+    bool CancelOrder(uint64_t orderId);
     OrderPool &GetPoll();
 
     void Start();
@@ -46,6 +47,9 @@ private:
     // TODO: Implement and apply here MPSCQueue ti avoid race condition and using mutex
     std::mutex mPendingMutex;
     std::queue<uint32_t> mPendingOrders;
+
+    std::mutex mOrderIndexMutex;
+    std::unordered_map<uint64_t, uint32_t> mOrderIndex;
 };
 
 template <typename OpponentMap, typename SelfMap>
@@ -85,10 +89,27 @@ inline void MatchingEngine::ExecuteMatch(Order &takerOrder, uint32_t takerIdx, O
             uint32_t makerIdx = orderAtPrice.front();
             Order &makerOrder = mOrders.Get(makerIdx);
 
+            if (makerOrder.cancelled.load(std::memory_order_acquire))
+            {
+                orderAtPrice.pop_front();
+                continue;
+            }
+
             uint32_t matchedQty = std::min(takerOrder.quantity, makerOrder.quantity);
 
             bool takerFilled = takerOrder.quantity == matchedQty;
             bool makerFilled = makerOrder.quantity == matchedQty;
+
+            if (takerFilled)
+            {
+                std::lock_guard<std::mutex> lock(mOrderIndexMutex);
+                mOrderIndex.erase(takerOrder.orderId);
+            }
+            if (makerFilled)
+            {
+                std::lock_guard<std::mutex> lock(mOrderIndexMutex);
+                mOrderIndex.erase(makerOrder.orderId);
+            }
 
             takerOrder.quantity -= matchedQty;
             makerOrder.quantity -= matchedQty;
@@ -109,6 +130,10 @@ inline void MatchingEngine::ExecuteMatch(Order &takerOrder, uint32_t takerIdx, O
     if (takerOrder.quantity > 0 && takerOrder.orderType == eOrderType::LIMIT)
     {
         selfBook[takerOrder.price].push_back(takerIdx);
+        {
+            std::lock_guard<std::mutex> lock(mOrderIndexMutex);
+            mOrderIndex[takerOrder.orderId] = takerIdx;
+        }
         spdlog::info("Added to book idx={} side={} price={} qty={}", takerIdx, takerSide == eSide::BUY ? "BUY" : "SELL",
                      takerOrder.price, takerOrder.quantity);
     }

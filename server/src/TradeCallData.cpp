@@ -92,6 +92,24 @@ void TradeCallData::HandleRead(bool ok)
     if (!mSessionRegistered.exchange(true, std::memory_order_acq_rel))
         mClientId = mRequest.clientid();
 
+    if (mRequest.type() == market::v1::CANCEL_ORDER)
+    {
+        bool cancelled = MatchingEngine::Instance().CancelOrder(mRequest.orderid());
+
+        TradeEvent ev;
+        ev.set_symbol(mRequest.symbol());
+        ev.set_price(mRequest.price());
+        ev.set_clientid(mRequest.clientid());
+        ev.set_orderid(mRequest.orderid());
+        ev.set_quantity(0);
+        ev.set_status(cancelled ? "CANCELLED" : "CANCEL_REJECTED");
+
+        EnqueueResponse(std::move(ev));
+
+        StartRead();
+        return;
+    }
+
     auto &engine = MatchingEngine::Instance();
     auto &pool = engine.GetPoll();
 
