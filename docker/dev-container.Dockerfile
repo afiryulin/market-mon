@@ -1,7 +1,5 @@
 FROM ci-base-image:latest
 
-USER root
-
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gdb \
     valgrind \
@@ -20,7 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tmux \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /workspace
+WORKDIR /work
 
 RUN echo "set auto-load safe-path /" >> /etc/gdb/gdbinit
 

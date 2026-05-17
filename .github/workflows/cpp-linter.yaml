@@ -2,14 +2,37 @@ name: Cpp Linter
 on:
   push:
     branches: [ master, main, develop ]
-    paths: ['**.c', '**.cpp', '**.h', '**.hpp', '**.cxx', '**.hxx', '**.cc', '**.hh', '**CMakeLists.txt', '**.cmake']
   pull_request:
     branches: [ master, main, develop ]
-    paths: ['**.c', '**.cpp', '**.h', '**.hpp', '**.cxx', '**.hxx', '**.cc', '**.hh', '**CMakeLists.txt', '**.cmake']
   workflow_dispatch:
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      cpp: ${{ steps.filter.outputs.cpp }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            cpp:
+              - '**.c'
+              - '**.cpp'
+              - '**.h'
+              - '**.hpp'
+              - '**.cxx'
+              - '**.hxx'
+              - '**.cc'
+              - '**.hh'
+              - '**CMakeLists.txt'
+              - '**.cmake'
+
+
   cpp-linter:
+    needs: changes
+    if: ${{ needs.changes.outputs.cpp == 'true' }}
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/${{ github.repository_owner }}/market-mon/ci-base:latest
