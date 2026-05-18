@@ -1,0 +1,33 @@
+name: Run Integration Tests
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  run-integration-tests:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/${{ github.repository_owner }}/market-mon/ci-base:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v5
+
+    - name: Configure CMake
+      run: cmake -S . -B ${{github.workspace}}/build -G Ninja -DENABLE_TESTS=ON
+
+    - name: Build
+      run: |
+        cmake --build ${{github.workspace}}/build
+
+    - name: Run integration tests
+      run: |
+        ctest --test-dir ${{github.workspace}}/build --output-on-failure -V -R matching_engine_integration_test | tee ctest_output.log
+        ! grep -q "\[error\]" ctest_output.log

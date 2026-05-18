@@ -56,12 +56,16 @@ void TradeCallData::OnTradeNotify(const TradeNotification &note)
 
 uint32_t TradeCallData::GetClientId() const { return mClientId; }
 void TradeCallData::SetResponseThreadIdx(uint8_t index) { mResponseThreadIdx = index; }
-void TradeCallData::RegisterSessionFromCurrentRequest()
+bool TradeCallData::RegisterSessionFromCurrentRequest()
 {
+    uint32_t incomingClientId = mRequest.clientid();
     if (mSessionRegistered.exchange(true, std::memory_order_acquire))
-        return;
+    {
+        mClientId = incomingClientId;
+        return true;
+    }
 
-    mClientId = mRequest.clientid();
+    return mClientId == incomingClientId;
 }
 
 void TradeCallData::HandleConnect(bool ok)
@@ -209,7 +213,7 @@ void TradeCallData::TryWriteNext()
 {
     std::lock_guard<std::mutex> locker(mWriteMutex);
 
-    if (mFinishStarted.load(std::memory_order_acquire) || mIsWriting.load(std::memory_order_acquire) ||
+    if (mFinishStarted.load(std::memory_order_acquire) || mIsWriting.load(std::memory_order_relaxed) ||
         mWriteQueue.empty())
     {
         return;
@@ -231,7 +235,7 @@ void TradeCallData::Finish()
 
     {
         std::lock_guard<std::mutex> locker(mWriteMutex);
-        if (mIsWriting.load(std::memory_order_acquire) || !mWriteQueue.empty())
+        if (mIsWriting.load(std::memory_order_relaxed) || !mWriteQueue.empty())
             return;
     }
 

@@ -1,15 +1,25 @@
-add_executable(matching_engine_test)
+set(TEST_TARGET matching_engine_integration_test)
 
-target_sources(matching_engine_test
-    PRIVATE
-        MatchingEngineTest.cpp
-)
+add_executable(${TEST_TARGET}
+    TradeStreamIntegrationTest.cpp)
 
-target_link_libraries(matching_engine_test
+
+
+target_include_directories(${TEST_TARGET}
+    PUBLIC
+        ${PROJECT_BINARY_DIR})
+
+target_link_libraries(${TEST_TARGET}
     PRIVATE
         market_proto
+        market_server_core
+        GTest::gtest
+        GTest::gtest_main
         gRPC::grpc++
         spdlog::spdlog
 )
 
-target_include_directories(matching_engine_test PUBLIC ${PROJECT_BINARY_DIR})
+add_test(
+    NAME matching_engine_integration_test
+    COMMAND matching_engine_integration_test
+)

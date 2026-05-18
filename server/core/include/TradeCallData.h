@@ -26,7 +26,7 @@ public:
     void OnTradeNotify(const TradeNotification &note);
     uint32_t GetClientId() const;
     void SetResponseThreadIdx(uint8_t index);
-    void RegisterSessionFromCurrentRequest();
+    bool RegisterSessionFromCurrentRequest();
 
 private:
     void HandleConnect(bool ok);

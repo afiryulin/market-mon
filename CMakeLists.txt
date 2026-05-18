@@ -18,7 +18,14 @@ option(ENABLE_TESTS "Enable tests" OFF)
 # ---------------------------------------------------
 include(cmake/InstallDeps.cmake)
 
+configure_file(
+    ${PROJECT_SOURCE_DIR}/common/Config.h.in
+    ${PROJECT_BINARY_DIR}/common/Config.h
+)
+
 add_subdirectory(proto)
 add_subdirectory(server)
 add_subdirectory(client)
-add_subdirectory(tests)
+if(ENABLE_TESTS)
+    add_subdirectory(tests)
+endif()
