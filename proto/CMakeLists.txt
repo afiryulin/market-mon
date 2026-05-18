@@ -17,8 +17,8 @@ target_link_libraries(market_proto
 
 target_include_directories(market_proto
     PUBLIC
-    ${CMAKE_CURRENT_BINARY_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_CURRENT_BINARY_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 foreach(proto_source ${PROTO_SOURCES})
@@ -29,12 +29,14 @@ foreach(proto_source ${PROTO_SOURCES})
     file(RELATIVE_PATH rel_dir "${CMAKE_CURRENT_SOURCE_DIR}" "${proto_dir}")
 
     set(pb_src "${CMAKE_CURRENT_BINARY_DIR}/${rel_dir}/${proto_name}.pb.cc")
+    set(pb_hdr "${CMAKE_CURRENT_BINARY_DIR}/${rel_dir}/${proto_name}.pb.h")
     set(grpc_src "${CMAKE_CURRENT_BINARY_DIR}/${rel_dir}/${proto_name}.grpc.pb.cc")
+    set(grpc_hdr "${CMAKE_CURRENT_BINARY_DIR}/${rel_dir}/${proto_name}.grpc.pb.h")
 
     list(APPEND PROTO_GENERATED_FILES "${pb_cc}" "${grpc_cc}")
 
     add_custom_command(
-        OUTPUT ${pb_src} ${grpc_src}
+        OUTPUT "${pb_src}" "${pb_hdr}" "${grpc_src}" "${grpc_hdr}"
         COMMAND protobuf::protoc
         ARGS
             --grpc_out ${CMAKE_CURRENT_BINARY_DIR}
@@ -46,5 +48,11 @@ foreach(proto_source ${PROTO_SOURCES})
         COMMENT "Generating C++ code from ${proto_source}"
         VERBATIM
     )
-    target_sources(market_proto PRIVATE ${pb_src} ${grpc_src})
+    target_sources(market_proto
+        PRIVATE
+            "${pb_src}"
+            "${pb_hdr}"
+            "${grpc_src}"
+            "${grpc_hdr}"
+    )
 endforeach()

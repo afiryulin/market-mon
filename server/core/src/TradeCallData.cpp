@@ -3,6 +3,7 @@
 
 #include "../include/MatchingEngine.h"
 #include "../include/TradeCallData.h"
+#include "TradeCallData.h"
 #include "spdlog/spdlog.h"
 
 TradeCallData::TradeCallData(MarketService::AsyncService *service, ServerCompletionQueue *completionQueue)
@@ -55,13 +56,30 @@ void TradeCallData::OnTradeNotify(const TradeNotification &note)
 }
 
 uint32_t TradeCallData::GetClientId() const { return mClientId; }
-void TradeCallData::SetResponseThreadIdx(uint8_t index) { mResponseThreadIdx = index; }
-void TradeCallData::RegisterSessionFromCurrentRequest()
-{
-    if (mSessionRegistered.exchange(true, std::memory_order_acquire))
-        return;
 
-    mClientId = mRequest.clientid();
+void TradeCallData::SetResponseThreadIdx(uint8_t index) { mResponseThreadIdx = index; }
+
+bool TradeCallData::RegisterSessionFromCurrentRequest()
+{
+
+    uint32_t incomingClientId = mRequest.clientid();
+    spdlog::info("RegisterSession check: registered={} stored={} incoming={}",
+                 mSessionRegistered.load(std::memory_order_acquire), mClientId, incomingClientId);
+
+    if (!mSessionRegistered.exchange(true, std::memory_order_acq_rel))
+    {
+        mClientId = incomingClientId;
+        spdlog::info("Register session client={}", incomingClientId);
+
+        return true;
+    }
+
+    return mClientId == incomingClientId;
+}
+
+bool TradeCallData::IsValidateSessionFromCurrentRequest() const
+{
+    return mSessionRegistered.load(std::memory_order_acquire) && mClientId == mRequest.clientid();
 }
 
 void TradeCallData::HandleConnect(bool ok)
@@ -89,8 +107,24 @@ void TradeCallData::HandleRead(bool ok)
         return;
     }
 
-    if (!mSessionRegistered.exchange(true, std::memory_order_acq_rel))
-        mClientId = mRequest.clientid();
+    const bool sessionOk = IsValidateSessionFromCurrentRequest();
+
+    spdlog::info("HandleRead sessionOk={} requestClient={} storedClient={}", sessionOk, mRequest.clientid(), mClientId);
+
+    if (!sessionOk)
+    {
+        TradeEvent ev;
+        ev.set_symbol(mRequest.symbol());
+        ev.set_price(mRequest.price());
+        ev.set_clientid(mRequest.clientid());
+        ev.set_orderid(mRequest.orderid());
+        ev.set_quantity(mRequest.quantity());
+        ev.set_status("REJECTED_INVALID_SESSION_CLIENT");
+        EnqueueResponse(std::move(ev));
+        StartRead();
+
+        return;
+    }
 
     if (mRequest.type() == market::v1::CANCEL_ORDER)
     {
@@ -131,11 +165,14 @@ void TradeCallData::HandleRead(bool ok)
     spdlog::info("Trade Order: {} {} {}", mRequest.symbol(), mRequest.quantity(), mRequest.is_buy() ? "BUY" : "SELL");
 
     TradeEvent accepted{};
-    accepted.set_clientid(mRequest.clientid());
     accepted.set_symbol(mRequest.symbol());
+    accepted.set_clientid(mRequest.clientid());
+    accepted.set_orderid(mRequest.orderid());
     accepted.set_quantity(mRequest.quantity());
     accepted.set_price(mRequest.price());
     accepted.set_status("ACCEPTED");
+
+    spdlog::info("Enqueue ACCEPTED client={} order={}", mClientId, mRequest.orderid());
 
     EnqueueResponse(std::move(accepted));
     StartRead();
@@ -209,7 +246,7 @@ void TradeCallData::TryWriteNext()
 {
     std::lock_guard<std::mutex> locker(mWriteMutex);
 
-    if (mFinishStarted.load(std::memory_order_acquire) || mIsWriting.load(std::memory_order_acquire) ||
+    if (mFinishStarted.load(std::memory_order_acquire) || mIsWriting.load(std::memory_order_relaxed) ||
         mWriteQueue.empty())
     {
         return;
@@ -217,6 +254,9 @@ void TradeCallData::TryWriteNext()
 
     mResponse = std::move(mWriteQueue.front());
     mWriteQueue.pop();
+
+    spdlog::info("Write TradeEvent client={} order={} status={}", mResponse.clientid(), mResponse.orderid(),
+                 mResponse.status());
 
     mIsWriting.store(true, std::memory_order_relaxed);
 
@@ -231,7 +271,7 @@ void TradeCallData::Finish()
 
     {
         std::lock_guard<std::mutex> locker(mWriteMutex);
-        if (mIsWriting.load(std::memory_order_acquire) || !mWriteQueue.empty())
+        if (mIsWriting.load(std::memory_order_relaxed) || !mWriteQueue.empty())
             return;
     }
 

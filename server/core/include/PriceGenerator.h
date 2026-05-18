@@ -16,9 +16,9 @@ public:
     void SetCallback(Callback fn);
 
 private:
-    void RunInternal();
+    void RunInternal(std::stop_token stop);
 
-    std::thread mThread;
+    std::jthread mThread;
     std::atomic<bool> mRunning{false};
     Callback mCallback;
 };

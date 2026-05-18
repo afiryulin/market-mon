@@ -1,27 +1,16 @@
-set(TARGET_NAME market_server)
-add_executable(${TARGET_NAME}
+add_subdirectory(core)
+
+set(SERVER_EXECUTABLE market_server)
+
+add_executable(${SERVER_EXECUTABLE}
     src/main.cpp
-    src/PriceGenerator.cpp
-    src/SubscriberManager.cpp
-    src/AsyncMarketServer.cpp
-    src/SubscribePriceCallData.cpp
-    src/SubscriberManager.cpp
-    src/PriceGenerator.cpp
-    src/GetPriceCallData.cpp
-    src/TradeCallData.cpp
-    src/MatchingEngine.cpp
 )
 
-configure_file(
-    ${PROJECT_SOURCE_DIR}/common/Config.h.in
-    ${PROJECT_BINARY_DIR}/common/Config.h
-)
+target_include_directories(${SERVER_EXECUTABLE} PRIVATE "${PROJECT_BINARY_DIR}")
 
-target_include_directories(${TARGET_NAME} PUBLIC "${PROJECT_BINARY_DIR}")
 
-target_link_libraries(${TARGET_NAME}
-PRIVATE
-    market_proto
-    gRPC::grpc++
-    spdlog::spdlog
+target_link_libraries(
+    ${SERVER_EXECUTABLE}
+    PRIVATE
+        market_server_core
 )

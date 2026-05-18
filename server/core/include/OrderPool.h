@@ -22,6 +22,8 @@ public:
     }
     Order &Get(uint32_t idx) { return mPool[idx]; }
 
+    void Reset() { mNextFreeIdx.store(1, std::memory_order_relaxed); };
+
 private:
     std::vector<Order> mPool;
     std::atomic<uint32_t> mNextFreeIdx{1}; // 0 is same logic with nullptr
