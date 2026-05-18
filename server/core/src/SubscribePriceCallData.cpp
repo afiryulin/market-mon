@@ -18,14 +18,22 @@ SubscribePriceCallData::SubscribePriceCallData(market::v1::MarketService::AsyncS
 
 void SubscribePriceCallData::ProcessData(CallDataTag *tag, bool ok)
 {
+    if (ok && eCallDataAction::FINISH == tag->actionType)
+    {
+        spdlog::info("Context status: client {} disconnected", mContext.peer());
+        SubscriberManager::Instance().RemoveSubscriber(this);
+
+        delete this;
+        return;
+    }
+
     if (!ok)
     {
-        if (!mIsFinished.load())
-        {
-            mIsFinished.store(true);
-            SubscriberManager::Instance().RemoveSubscriber(this);
-            mPriceWriter->Finish(grpc::Status::OK, &mFinishTag);
-        }
+        // When ok=false, the operation was cancelled and the call is invalid.
+        // Do not attempt to call Finish() as it will cause invalid pointer access.
+        // Just mark as finished and let it be cleaned up naturally.
+        mIsFinished.store(true);
+        return;
     }
 
     if (eCallDataAction::CONNECT == tag->actionType)
@@ -42,17 +50,11 @@ void SubscribePriceCallData::ProcessData(CallDataTag *tag, bool ok)
         mWriteInProgress.store(false);
         ProcessQueue();
     }
-
-    if (eCallDataAction::FINISH == tag->actionType)
-    {
-        spdlog::info("Context status: client {} disconnected", mContext.peer());
-        delete this;
-    }
 }
 
 void SubscribePriceCallData::PushPrice(const std::string &symbol, double value)
 {
-    if (symbol != mRequest.symbol())
+    if (mIsFinished.load() || symbol != mRequest.symbol())
     {
         return;
     }

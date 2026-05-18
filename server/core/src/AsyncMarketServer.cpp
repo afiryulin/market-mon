@@ -44,8 +44,8 @@ void AsyncMarketServer::Run(const std::string &address)
     }
 
     // NOLINTNEXTLINE(clang-analyzer-cplusplus.NewDeleteLeaks)
-    CallDataFactory<MarketService::AsyncService>::SeedQueues<TradeCallData, SubscribePriceCallData, GetPriceCallData>(
-        &mService, mCompletionQueues);
+    CallDataFactory<MarketService::AsyncService>::SeedQueues<TradeCallData, SubscribePriceCallData>(&mService,
+                                                                                                    mCompletionQueues);
 }
 
 void AsyncMarketServer::HandleCall(std::stop_token stop_token, size_t threadIdx, grpc::ServerCompletionQueue *queue)
@@ -89,25 +89,21 @@ void AsyncMarketServer::HandleCall(std::stop_token stop_token, size_t threadIdx,
 
             assert(dataTag && dataTag->parent);
 
-            if (std::strcmp(dataTag->parent->GetTypeName(), "TradeCallData") == 0)
-            {
-                auto *tradeData = static_cast<TradeCallData *>(dataTag->parent);
-                if (dataTag->actionType == eCallDataAction::READ && ok)
-                {
-                    if (tradeData)
-                    {
-                        tradeData->SetResponseThreadIdx(threadIdx);
-                        tradeData->RegisterSessionFromCurrentRequest();
-                        localTradeSession[tradeData->GetClientId()] = tradeData;
-                    }
-                }
+            const bool isTrade = std::strcmp(dataTag->parent->GetTypeName(), "TradeCallData") == 0;
+            auto *tradeData = isTrade ? static_cast<TradeCallData *>(dataTag->parent) : nullptr;
 
-                if (!ok || dataTag->actionType == eCallDataAction::FINISH)
+            if (isTrade && (!ok || dataTag->actionType == eCallDataAction::FINISH))
+            {
+                localTradeSession.erase(tradeData->GetClientId());
+            }
+
+            if (isTrade && ok && dataTag->actionType == eCallDataAction::READ)
+            {
+                if (tradeData->RegisterSessionFromCurrentRequest())
                 {
-                    if (tradeData)
-                    {
-                        localTradeSession.erase(tradeData->GetClientId());
-                    }
+                    localTradeSession[tradeData->GetClientId()] = tradeData;
+                    spdlog::info("Registered local session clientId={} threadIdx={}", tradeData->GetClientId(),
+                                 threadIdx);
                 }
             }
 
@@ -118,21 +114,29 @@ void AsyncMarketServer::HandleCall(std::stop_token stop_token, size_t threadIdx,
 
 void AsyncMarketServer::Shutdown()
 {
-    spdlog::trace("Server shutdown.");
+    spdlog::info("Server shutdown...");
+
+    // Stop price generation first to prevent new broadcasts
+    mPriceGenerator.Stop();
+
+    // Stop the matching engine
+    MatchingEngine::Instance().Stop();
+
+    // Shutdown the gRPC server (this cancels all pending operations)
     if (mServer)
     {
         mServer->Shutdown();
     }
 
+    // Shutdown completion queues (this ensures no new events are generated)
     for (auto &queue : mCompletionQueues)
     {
         queue->Shutdown();
     }
 
-    for (auto &thread : mThreads)
-    {
-        thread.request_stop();
-    }
+    // Wait for all handler threads to finish (they will clean up CallData objects)
+    mThreads.clear();
 
-    mPriceGenerator.Stop();
+    // Finally clear any remaining subscribers
+    SubscriberManager::Instance().Shutdown();
 }

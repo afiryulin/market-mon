@@ -3,6 +3,7 @@
 
 #include "../include/MatchingEngine.h"
 #include "../include/TradeNotificationDispatcher.h"
+#include "MatchingEngine.h"
 
 MatchingEngine::MatchingEngine() : mOrders{1000000} { mHeadIdx.store(0); }
 
@@ -37,13 +38,23 @@ void MatchingEngine::SubmitOrder(uint32_t orderIdx)
 
 bool MatchingEngine::CancelOrder(uint64_t orderId)
 {
+    spdlog::info("CancelOrder request orderId={} indexSize={}", orderId, mOrderIndex.size());
+
     std::lock_guard<std::mutex> lock(mOrderIndexMutex);
     auto it = mOrderIndex.find(orderId);
 
     if (it == mOrderIndex.end())
+    {
+        spdlog::warn("CancelOrder rejected: orderId={} not found", orderId);
         return false;
+    }
 
-    Order &order = mOrders.Get(it->second);
+    auto idx = it->second;
+    Order &order = mOrders.Get(idx);
+
+    spdlog::info("CancelOrder found orderId={} idx={} qty={} cancelled={}", orderId, idx, order.quantity,
+                 order.cancelled.load());
+
     order.cancelled.store(true, std::memory_order_release);
 
     mOrderIndex.erase(it);
@@ -55,10 +66,40 @@ OrderPool &MatchingEngine::GetPoll() { return mOrders; }
 
 void MatchingEngine::Start()
 {
+    spdlog::info("MatchingEngine::Start");
     if (mRunning.exchange(true))
         return;
 
     mThread = std::jthread([this](std::stop_token st) { Run(st); });
+}
+
+void MatchingEngine::Stop()
+{
+    spdlog::info("MatchingEngine::Stop");
+    mThread.request_stop();
+
+    if (!mRunning.exchange(false, std::memory_order_acq_rel))
+        return;
+
+    if (mThread.joinable())
+    {
+        mThread.join();
+    }
+}
+
+void MatchingEngine::ResetForTesting()
+{
+    Stop();
+
+    {
+        std::lock_guard lock(mPendingMutex);
+        std::queue<uint32_t> empty;
+        std::swap(mPendingOrders, empty);
+    }
+
+    mOrderBook.clear();
+    mOrderIndex.clear();
+    mOrders.Reset();
 }
 
 void MatchingEngine::Run(std::stop_token stop)

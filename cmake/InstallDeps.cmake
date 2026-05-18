@@ -79,9 +79,9 @@ if(NOT fmt_FOUND)
     )
 endif()
 
-find_package(spdlog QUIET)
 
 # spdlog
+find_package(spdlog QUIET)
 if(NOT spdlog_FOUND)
     CPMAddPackage(
         NAME spdlog
@@ -109,12 +109,15 @@ endif()
 if(ENABLE_TESTS)
     enable_testing()
 
-    CPMAddPackage(
-        NAME googletest
-        GITHUB_REPOSITORY google/googletest
-        VERSION 1.17.0
-        OPTIONS
-            "INSTALL_GTEST OFF"
-    )
-
+    find_package(googletest QUIET)
+    if(NOT googletest_FOUND)
+        message(STATUS "googletest NOT found, downloading...")
+        CPMAddPackage(
+            NAME googletest
+            GITHUB_REPOSITORY google/googletest
+            VERSION 1.17.0
+            OPTIONS
+                "INSTALL_GTEST OFF"
+        )
+    endif()
 endif()

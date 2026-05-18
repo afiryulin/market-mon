@@ -14,6 +14,7 @@ public:
     void RemoveSubscriber(SubscribePriceCallData *subscriber);
 
     void BroadcastPrice(const std::string &symbol, double value);
+    void Shutdown();
 
 private:
     std::mutex mMutex;

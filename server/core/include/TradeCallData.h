@@ -27,6 +27,7 @@ public:
     uint32_t GetClientId() const;
     void SetResponseThreadIdx(uint8_t index);
     bool RegisterSessionFromCurrentRequest();
+    bool IsValidateSessionFromCurrentRequest() const;
 
 private:
     void HandleConnect(bool ok);

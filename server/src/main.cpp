@@ -31,7 +31,7 @@ int main()
 
     // Wait for shutdown signal (e.g., Ctrl+C)
     // For testing, you can use st::cin.get() to wait for Enter
-    std::cin.get();
+    // std::cin.get();
 
     server.Shutdown();
     return 0;
