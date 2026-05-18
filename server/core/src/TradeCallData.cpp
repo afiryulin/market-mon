@@ -55,13 +55,18 @@ void TradeCallData::OnTradeNotify(const TradeNotification &note)
 }
 
 uint32_t TradeCallData::GetClientId() const { return mClientId; }
+
 void TradeCallData::SetResponseThreadIdx(uint8_t index) { mResponseThreadIdx = index; }
+
 bool TradeCallData::RegisterSessionFromCurrentRequest()
 {
     uint32_t incomingClientId = mRequest.clientid();
-    if (mSessionRegistered.exchange(true, std::memory_order_acquire))
+    if (mSessionRegistered.exchange(true, std::memory_order_acq_rel))
     {
         mClientId = incomingClientId;
+
+        spdlog::info("Register session client={}", incomingClientId);
+
         return true;
     }
 
@@ -93,8 +98,18 @@ void TradeCallData::HandleRead(bool ok)
         return;
     }
 
-    if (!mSessionRegistered.exchange(true, std::memory_order_acq_rel))
-        mClientId = mRequest.clientid();
+    if (!RegisterSessionFromCurrentRequest())
+    {
+        TradeEvent ev;
+        ev.set_clientid(mRequest.clientid());
+        ev.set_orderid(mRequest.orderid());
+        ev.set_symbol(mRequest.symbol());
+        ev.set_status("REJECTED_INVALID_SESSION_CLIENT");
+        EnqueueResponse(std::move(ev));
+        StartRead();
+
+        return;
+    }
 
     if (mRequest.type() == market::v1::CANCEL_ORDER)
     {
