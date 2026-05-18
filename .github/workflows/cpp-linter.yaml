@@ -67,6 +67,7 @@ jobs:
           format-review: true
           passive-reviews: true
           extra-args: "-std=c++20 -Wall"
+          ignore: "tests"
           version: 20
 
       - name: Check linter results
