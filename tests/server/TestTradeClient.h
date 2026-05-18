@@ -55,7 +55,7 @@ public:
             mStream->WritesDone();
         }
 
-        // mContext.TryCancel();
+        mContext.TryCancel();
 
         if (mReader.joinable())
         {

@@ -3,6 +3,7 @@
 
 #include "../include/MatchingEngine.h"
 #include "../include/TradeCallData.h"
+#include "TradeCallData.h"
 #include "spdlog/spdlog.h"
 
 TradeCallData::TradeCallData(MarketService::AsyncService *service, ServerCompletionQueue *completionQueue)
@@ -60,17 +61,25 @@ void TradeCallData::SetResponseThreadIdx(uint8_t index) { mResponseThreadIdx = i
 
 bool TradeCallData::RegisterSessionFromCurrentRequest()
 {
+
     uint32_t incomingClientId = mRequest.clientid();
-    if (mSessionRegistered.exchange(true, std::memory_order_acq_rel))
+    spdlog::info("RegisterSession check: registered={} stored={} incoming={}",
+                 mSessionRegistered.load(std::memory_order_acquire), mClientId, incomingClientId);
+
+    if (!mSessionRegistered.exchange(true, std::memory_order_acq_rel))
     {
         mClientId = incomingClientId;
-
         spdlog::info("Register session client={}", incomingClientId);
 
         return true;
     }
 
     return mClientId == incomingClientId;
+}
+
+bool TradeCallData::IsValidateSessionFromCurrentRequest() const
+{
+    return mSessionRegistered.load(std::memory_order_acquire) && mClientId == mRequest.clientid();
 }
 
 void TradeCallData::HandleConnect(bool ok)
@@ -98,12 +107,18 @@ void TradeCallData::HandleRead(bool ok)
         return;
     }
 
-    if (!RegisterSessionFromCurrentRequest())
+    const bool sessionOk = IsValidateSessionFromCurrentRequest();
+
+    spdlog::info("HandleRead sessionOk={} requestClient={} storedClient={}", sessionOk, mRequest.clientid(), mClientId);
+
+    if (!sessionOk)
     {
         TradeEvent ev;
+        ev.set_symbol(mRequest.symbol());
+        ev.set_price(mRequest.price());
         ev.set_clientid(mRequest.clientid());
         ev.set_orderid(mRequest.orderid());
-        ev.set_symbol(mRequest.symbol());
+        ev.set_quantity(mRequest.quantity());
         ev.set_status("REJECTED_INVALID_SESSION_CLIENT");
         EnqueueResponse(std::move(ev));
         StartRead();
@@ -150,11 +165,14 @@ void TradeCallData::HandleRead(bool ok)
     spdlog::info("Trade Order: {} {} {}", mRequest.symbol(), mRequest.quantity(), mRequest.is_buy() ? "BUY" : "SELL");
 
     TradeEvent accepted{};
-    accepted.set_clientid(mRequest.clientid());
     accepted.set_symbol(mRequest.symbol());
+    accepted.set_clientid(mRequest.clientid());
+    accepted.set_orderid(mRequest.orderid());
     accepted.set_quantity(mRequest.quantity());
     accepted.set_price(mRequest.price());
     accepted.set_status("ACCEPTED");
+
+    spdlog::info("Enqueue ACCEPTED client={} order={}", mClientId, mRequest.orderid());
 
     EnqueueResponse(std::move(accepted));
     StartRead();
@@ -236,6 +254,9 @@ void TradeCallData::TryWriteNext()
 
     mResponse = std::move(mWriteQueue.front());
     mWriteQueue.pop();
+
+    spdlog::info("Write TradeEvent client={} order={} status={}", mResponse.clientid(), mResponse.orderid(),
+                 mResponse.status());
 
     mIsWriting.store(true, std::memory_order_relaxed);
 

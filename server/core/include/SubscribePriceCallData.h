@@ -13,6 +13,8 @@ public:
     SubscribePriceCallData(market::v1::MarketService::AsyncService * /*service*/,
                            grpc::ServerCompletionQueue * /*completionQueue*/);
 
+    ~SubscribePriceCallData() = default;
+
     void ProcessData(CallDataTag *tag, bool ok) override;
     void PushPrice(const std::string &symbol, double value);
 
@@ -26,6 +28,7 @@ private:
     market::v1::SubscribeRequest mRequest;
     market::v1::PriceUpdate mResponse;
 
+    bool mRegistered{false};
     std::unique_ptr<grpc::ServerAsyncWriter<market::v1::PriceUpdate>> mPriceWriter;
     std::mutex mWriteMutex;
     std::atomic<bool> mWriteInProgress{false};
@@ -33,7 +36,6 @@ private:
     std::queue<market::v1::PriceUpdate> mUpdateQueue;
 
     CallDataTag mCreateTag{this, eCallDataAction::CONNECT};
-    // CallDataTag mReadTag{this, eCallDataAction::READ};
     CallDataTag mWriteTag{this, eCallDataAction::WRITE};
     CallDataTag mFinishTag{this, eCallDataAction::FINISH};
 };

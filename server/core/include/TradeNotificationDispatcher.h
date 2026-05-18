@@ -18,6 +18,7 @@ public:
 
     void RegisterQueue(size_t responseThreadIdx, SPSCQueue<TradeNotification> &queue);
     void Post(size_t responseThreadIdx, const TradeNotification &notification);
+    void Shutdown();
 
 private:
     std::array<std::atomic<SPSCQueue<TradeNotification> *>, 32> mQueues{};
@@ -43,5 +44,16 @@ inline void NotificationDispatcher::Post(size_t responseThreadIdx, const TradeNo
     }
 
     auto *queue = mQueues[responseThreadIdx].load(std::memory_order_acquire);
-    queue->Push(notification);
+    if (queue)
+    {
+        queue->Push(notification);
+    }
+}
+
+inline void NotificationDispatcher::Shutdown()
+{
+    for (auto &queuePtr : mQueues)
+    {
+        queuePtr.store(nullptr, std::memory_order_release);
+    }
 }

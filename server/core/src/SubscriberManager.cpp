@@ -25,11 +25,21 @@ void SubscriberManager::RemoveSubscriber(SubscribePriceCallData *subscriber)
     mSubscribers.erase(std::remove(mSubscribers.begin(), mSubscribers.end(), subscriber), mSubscribers.end());
 }
 
-void SubscriberManager::BroadcastPrice(const std::string &symbol, double value)
+void SubscriberManager::Shutdown()
 {
     std::lock_guard<std::mutex> locker(mMutex);
+    mSubscribers.clear();
+}
 
-    for (auto subscriber : mSubscribers)
+void SubscriberManager::BroadcastPrice(const std::string &symbol, double value)
+{
+    std::vector<SubscribePriceCallData *> subscribersCopy;
+    {
+        std::lock_guard<std::mutex> locker(mMutex);
+        subscribersCopy = mSubscribers;
+    }
+
+    for (auto subscriber : subscribersCopy)
     {
         subscriber->PushPrice(symbol, value);
     }

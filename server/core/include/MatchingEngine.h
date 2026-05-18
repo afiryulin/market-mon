@@ -23,6 +23,9 @@ public:
     OrderPool &GetPoll();
 
     void Start();
+    void Stop();
+
+    void ResetForTesting();
 
 private:
     MatchingEngine();
@@ -134,7 +137,7 @@ inline void MatchingEngine::ExecuteMatch(Order &takerOrder, uint32_t takerIdx, O
             std::lock_guard<std::mutex> lock(mOrderIndexMutex);
             mOrderIndex[takerOrder.orderId] = takerIdx;
         }
-        spdlog::info("Added to book idx={} side={} price={} qty={}", takerIdx, takerSide == eSide::BUY ? "BUY" : "SELL",
-                     takerOrder.price, takerOrder.quantity);
+        spdlog::info("Indexed order={} idx={} side={} price={} qty={}", takerOrder.orderId, takerIdx,
+                     takerSide == eSide::BUY ? "BUY" : "SELL", takerOrder.price, takerOrder.quantity);
     }
 }
