@@ -4,7 +4,7 @@
 class GetPriceCallData final : public ICallDataBase
 {
 public:
-    REGISTER_CALL_TYPE(GetPriceCallData)
+    REGISTER_CALL_TYPE(GetPriceCallData, eCallDataKind::GET_PRICE)
 
     GetPriceCallData(market::v1::MarketService::AsyncService *service, grpc::ServerCompletionQueue *completionQueue);
 

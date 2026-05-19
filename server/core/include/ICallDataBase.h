@@ -7,7 +7,7 @@
 
 #include "TradeNotification.h"
 
-enum class eCallDataAction
+enum class eCallDataAction : uint8_t
 {
     CONNECT,
     READ,
@@ -15,8 +15,17 @@ enum class eCallDataAction
     FINISH
 };
 
-#define REGISTER_CALL_TYPE(ClassName)                                                                                  \
-    const char *GetTypeName() const override { return #ClassName; }
+enum class eCallDataKind : uint8_t
+{
+    UNKNOWN,
+    TRADE,
+    SUBSCRIBE_PRICE,
+    GET_PRICE
+};
+
+#define REGISTER_CALL_TYPE(ClassName, KindValue)                                                                       \
+    const char *GetTypeName() const override { return #ClassName; }                                                    \
+    eCallDataKind GetKind() const override { return KindValue; }
 
 class ICallDataBase;
 struct CallDataTag
@@ -54,6 +63,7 @@ public:
     virtual void ProcessData(CallDataTag *tag, bool ok) = 0;
     virtual ~ICallDataBase() = default;
     virtual const char *GetTypeName() const = 0;
+    virtual eCallDataKind GetKind() const = 0;
 };
 
 template <typename T, typename Service>

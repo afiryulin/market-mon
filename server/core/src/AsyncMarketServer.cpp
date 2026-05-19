@@ -89,7 +89,7 @@ void AsyncMarketServer::HandleCall(std::stop_token stop_token, size_t threadIdx,
 
             assert(dataTag && dataTag->parent);
 
-            const bool isTrade = std::strcmp(dataTag->parent->GetTypeName(), "TradeCallData") == 0;
+            const bool isTrade = dataTag->parent->GetKind() == eCallDataKind::TRADE;
             auto *tradeData = isTrade ? static_cast<TradeCallData *>(dataTag->parent) : nullptr;
 
             if (isTrade && (!ok || dataTag->actionType == eCallDataAction::FINISH))
