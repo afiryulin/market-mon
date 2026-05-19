@@ -13,4 +13,5 @@ target_link_libraries(
     ${SERVER_EXECUTABLE}
     PRIVATE
         market_server_core
+        spdlog::spdlog
 )

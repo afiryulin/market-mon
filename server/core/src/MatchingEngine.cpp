@@ -21,18 +21,10 @@ void MatchingEngine::SubmitOrder(uint32_t orderIdx)
                  order.orderId, order.symbol, order.side == eSide::BUY ? "BUY" : "SELL", order.quantity, order.price,
                  order.orderType == eOrderType::LIMIT ? "LIMIT" : "MARKET");
 
-    // order.nextIdx.store(0, std::memory_order_relaxed);
-
-    // uint32_t prevIdx = mHeadIdx.exchange(orderIdx, std::memory_order_acq_rel);
-    // if (prevIdx != 0)
-    // {
-    //     mOrders.Get(prevIdx).nextIdx.store(orderIdx, std::memory_order_release);
-    // }
-
-    // TODO: Implement and apply here MPSCQueue ti avoid race condition and using mutex
+    if (!mPendingOrders.Push(orderIdx))
     {
-        std::lock_guard<std::mutex> lock(mPendingMutex);
-        mPendingOrders.push(orderIdx);
+        spdlog::error("MatchingEngine queue full");
+        return;
     }
 }
 
@@ -75,62 +67,56 @@ void MatchingEngine::Start()
 
 void MatchingEngine::Stop()
 {
-    spdlog::info("MatchingEngine::Stop");
-    mThread.request_stop();
+    spdlog::info("MatchingEngine::Stop begin");
 
     if (!mRunning.exchange(false, std::memory_order_acq_rel))
+    {
+        spdlog::info("MatchingEngine::Stop skipped");
         return;
+    }
 
     if (mThread.joinable())
     {
+        spdlog::info("MatchingEngine::Stop request_stop");
+        mThread.request_stop();
+
+        spdlog::info("MatchingEngine::Stop join begin");
         mThread.join();
+        spdlog::info("MatchingEngine::Stop join end");
     }
 }
 
 void MatchingEngine::ResetForTesting()
 {
     Stop();
-
-    {
-        std::lock_guard lock(mPendingMutex);
-        std::queue<uint32_t> empty;
-        std::swap(mPendingOrders, empty);
-    }
-
+    mPendingOrders.Reset();
     mOrderBook.clear();
     mOrderIndex.clear();
     mOrders.Reset();
+
+    mRunning.store(false, std::memory_order_release);
 }
 
 void MatchingEngine::Run(std::stop_token stop)
 {
     // uint32_t localQueueHead{0};
-    spdlog::info("MatchingEngine::Run");
+    spdlog::info("MatchingEngine::Run begin");
 
-    while (!stop.stop_requested())
+    while (!stop.stop_requested() && mRunning.load(std::memory_order_acquire))
     {
-        // TODO: Implement and apply here MPSCQueue (ASAP) to avoid race condition and using mutex
-        uint32_t orderIdx = 0;
+        auto idx = mPendingOrders.Pop();
 
-        {
-            std::lock_guard<std::mutex> lock(mPendingMutex);
-
-            if (!mPendingOrders.empty())
-            {
-                orderIdx = mPendingOrders.front();
-                mPendingOrders.pop();
-            }
-        }
-
-        if (orderIdx == 0)
+        if (!idx)
         {
             std::this_thread::yield();
             continue;
         }
 
-        Order &order = mOrders.Get(orderIdx);
-        ProcessOrder(order, orderIdx);
+        Order &order = mOrders.Get(*idx);
+        ProcessOrder(order, *idx);
     }
+
+    spdlog::info("MatchingEngine::Run end");
 
     // // Get current available orders
     // uint32_t head = mHeadIdx.exchange(0, std::memory_order_acq_rel);
