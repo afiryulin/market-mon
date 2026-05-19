@@ -9,7 +9,7 @@
 void PriceGenerator::Start()
 {
     mRunning.store(true);
-    mThread = std::jthread([this](std::git ststop_token stop) { RunInternal(stop); });
+    mThread = std::jthread([this](std::stop_token stop) { RunInternal(stop); });
 }
 
 void PriceGenerator::Stop()
