@@ -11,6 +11,7 @@
 #include <type_traits>
 #include <unordered_map>
 
+#include "../include/EngineCommand.h"
 #include "../include/MPSCQueue.h"
 #include "../include/OrderPool.h"
 
@@ -20,7 +21,7 @@ public:
     static MatchingEngine &Instance();
 
     void SubmitOrder(uint32_t orderIdx);
-    bool CancelOrder(uint64_t orderId);
+    void SubmitCancel(const EngineCommand &command);
     OrderPool &GetPoll();
 
     void Start();
@@ -32,6 +33,7 @@ private:
     MatchingEngine();
     void Run(std::stop_token stop);
     void ProcessOrder(Order &takerOrder, uint32_t takerIdx);
+    void ProcessCancel(const EngineCommand &command);
 
     template <typename OpponentMap, typename SelfMap>
     void ExecuteMatch(Order &takerOrder, uint32_t takerIdx, OpponentMap &opponentBook, SelfMap &selfBook,
@@ -39,6 +41,9 @@ private:
 
     void GenerateTrade(const Order &taker, const Order &maker, uint32_t qty, double price, bool takerFilled,
                        bool makerFilled);
+
+    void PostAccepted(const Order &order);
+    void PostCancelResult(const Order &order, bool canceled);
 
 private:
     alignas(64) std::atomic<uint32_t> mHeadIdx;
@@ -48,7 +53,7 @@ private:
     std::atomic<bool> mRunning{false};
     std::jthread mThread;
 
-    MPSCQueue<uint32_t, 8192> mPendingOrders;
+    MPSCQueue<EngineCommand, 65536> mPendingCommands;
 
     std::mutex mOrderIndexMutex;
     std::unordered_map<uint64_t, uint32_t> mOrderIndex;
@@ -136,6 +141,7 @@ inline void MatchingEngine::ExecuteMatch(Order &takerOrder, uint32_t takerIdx, O
             std::lock_guard<std::mutex> lock(mOrderIndexMutex);
             mOrderIndex[takerOrder.orderId] = takerIdx;
         }
+
         spdlog::info("Indexed order={} idx={} side={} price={} qty={}", takerOrder.orderId, takerIdx,
                      takerSide == eSide::BUY ? "BUY" : "SELL", takerOrder.price, takerOrder.quantity);
     }

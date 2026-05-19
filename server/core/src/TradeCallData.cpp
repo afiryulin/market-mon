@@ -47,9 +47,9 @@ void TradeCallData::OnTradeNotify(const TradeNotification &note)
     fillNotify.set_clientid(note.clientId);
     fillNotify.set_orderid(note.orderId);
     fillNotify.set_symbol(note.symbol);
-    fillNotify.set_price(note.fillPrice);
-    fillNotify.set_quantity(note.fillQuantity);
-    fillNotify.set_status(note.isFullFill ? "FILLED" : "PARTIALLY_FILLED");
+    fillNotify.set_price(note.price);
+    fillNotify.set_quantity(note.quantity);
+    fillNotify.set_status(TradeNotification::TypeToString(note.type));
     fillNotify.set_is_fully_filled(note.isFullFill);
 
     EnqueueResponse(std::move(fillNotify));
@@ -128,17 +128,16 @@ void TradeCallData::HandleRead(bool ok)
 
     if (mRequest.type() == market::v1::CANCEL_ORDER)
     {
-        bool cancelled = MatchingEngine::Instance().CancelOrder(mRequest.orderid());
+        EngineCommand cmd{};
+        cmd.type = eEngineCommandType::CANCEL_ORDER;
+        cmd.orderId = mRequest.orderid();
+        cmd.clientId = mClientId;
+        cmd.responseThreadIdx = mResponseThreadIdx;
+        cmd.price = mRequest.price();
 
-        TradeEvent ev;
-        ev.set_symbol(mRequest.symbol());
-        ev.set_price(mRequest.price());
-        ev.set_clientid(mRequest.clientid());
-        ev.set_orderid(mRequest.orderid());
-        ev.set_quantity(0);
-        ev.set_status(cancelled ? "CANCELLED" : "CANCEL_REJECTED");
+        std::strncpy(cmd.symbol, mRequest.symbol().c_str(), sizeof(cmd.symbol) - 1);
 
-        EnqueueResponse(std::move(ev));
+        MatchingEngine::Instance().SubmitCancel(cmd);
 
         StartRead();
         return;
@@ -163,20 +162,7 @@ void TradeCallData::HandleRead(bool ok)
     engine.SubmitOrder(orderIdx);
 
     spdlog::info("Trade Order: {} {} {}", mRequest.symbol(), mRequest.quantity(), mRequest.is_buy() ? "BUY" : "SELL");
-
-    TradeEvent accepted{};
-    accepted.set_symbol(mRequest.symbol());
-    accepted.set_clientid(mRequest.clientid());
-    accepted.set_orderid(mRequest.orderid());
-    accepted.set_quantity(mRequest.quantity());
-    accepted.set_price(mRequest.price());
-    accepted.set_status("ACCEPTED");
-
-    spdlog::info("Enqueue ACCEPTED client={} order={}", mClientId, mRequest.orderid());
-
-    EnqueueResponse(std::move(accepted));
     StartRead();
-    return;
 }
 
 void TradeCallData::HandleWrite(bool ok)
