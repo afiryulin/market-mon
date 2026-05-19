@@ -18,7 +18,7 @@ using namespace grpc;
 class TradeCallData : public ICallDataBase
 {
 public:
-    REGISTER_CALL_TYPE(TradeCallData)
+    REGISTER_CALL_TYPE(TradeCallData, eCallDataKind::TRADE)
 
     TradeCallData(MarketService::AsyncService *service, ServerCompletionQueue *completionQueue);
 

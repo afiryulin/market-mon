@@ -8,7 +8,7 @@
 class SubscribePriceCallData final : public ICallDataBase
 {
 public:
-    REGISTER_CALL_TYPE(SubscribePriceCallData)
+    REGISTER_CALL_TYPE(SubscribePriceCallData, eCallDataKind::SUBSCRIBE_PRICE)
 
     SubscribePriceCallData(market::v1::MarketService::AsyncService * /*service*/,
                            grpc::ServerCompletionQueue * /*completionQueue*/);
