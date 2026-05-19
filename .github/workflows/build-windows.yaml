@@ -19,11 +19,19 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Disable Windows Defender
+      shell: pwsh
+      run: |
+        Set-MpPreference -DisableRealtimeMonitoring $true
+        Add-MpPreference -ExclusionPath "${{ github.workspace }}"
+
     - name: Cache Build folder
       uses: actions/cache@v4
       with:
-        path: ${{ github.workspace }}/build
-        key: win-build-${{ hashFiles('**/CMakeLists.txt', '**.proto', 'vcpkg.json') }}-${{ github.run_id }}
+        path: |
+          ${{ github.workspace }}/build
+          ${{ github.workspace }}/build/.cmake
+        key: win-build-${{ hashFiles('**/CMakeLists.txt', '**.proto', 'vcpkg.json') }}
         restore-keys: |
           win-build-${{ hashFiles('**/CMakeLists.txt', '**.proto') }}-
           win-build-
@@ -65,15 +73,12 @@ jobs:
     - name: Configure CMake
       shell : pwsh
       run: |
-        if (Test-Path build) { Remove-Item -Recurse -Force build }
-
         cmake -B build -G Ninja -S . `
           -DCMAKE_BUILD_TYPE=Release `
           -DCMAKE_TOOLCHAIN_FILE="$($env:VCPKG_INSTALLATION_ROOT)/scripts/buildsystems/vcpkg.cmake" `
           -DVCPKG_TARGET_TRIPLET=x64-windows `
           -DCPM_USE_LOCAL_PACKAGES=ON
 
-
     - name: Build
       run: |
-        cmake --build ${{github.workspace}}/build
+        cmake --build ${{github.workspace}}/build --parallel
