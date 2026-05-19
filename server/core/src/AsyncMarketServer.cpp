@@ -64,7 +64,7 @@ void AsyncMarketServer::HandleCall(std::stop_token stop_token, size_t threadIdx,
         while (auto note = thisThreadTradeNoteQueue->Pop())
         {
             spdlog::info("Pop notification threadIdx={} client={} order={} qty={} price={} full={}", threadIdx,
-                         note->clientId, note->orderId, note->fillQuantity, note->fillPrice, note->isFullFill);
+                         note->clientId, note->orderId, note->quantity, note->price, note->isFullFill);
 
             auto it = localTradeSession.find(note->clientId);
             if (it != localTradeSession.end())

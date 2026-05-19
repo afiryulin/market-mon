@@ -21,45 +21,40 @@ void MatchingEngine::SubmitOrder(uint32_t orderIdx)
                  order.orderId, order.symbol, order.side == eSide::BUY ? "BUY" : "SELL", order.quantity, order.price,
                  order.orderType == eOrderType::LIMIT ? "LIMIT" : "MARKET");
 
-    if (!mPendingOrders.Push(orderIdx))
+    EngineCommand cmd{};
+    cmd.type = eEngineCommandType::NEW_ORDER;
+    cmd.orderIdx = orderIdx;
+    cmd.clientId = order.clientId;
+    cmd.orderId = order.orderId;
+    cmd.price = order.price;
+    cmd.responseThreadIdx = order.responseThreadIdx;
+    std::strncpy(cmd.symbol, order.symbol, sizeof(cmd.symbol) - 1);
+
+    if (!mPendingCommands.Push(std::move(cmd)))
     {
-        spdlog::error("MatchingEngine queue full");
-        return;
+        spdlog::critical("MatchingEngine command queue overflow");
+        std::terminate();
     }
 }
 
-bool MatchingEngine::CancelOrder(uint64_t orderId)
+void MatchingEngine::SubmitCancel(const EngineCommand &command)
 {
-    spdlog::info("CancelOrder request orderId={} indexSize={}", orderId, mOrderIndex.size());
+    spdlog::info("SubmitCancel client={} order={} symbol={} threadIdx={}", command.clientId, command.orderId,
+                 command.symbol, command.responseThreadIdx);
 
-    std::lock_guard<std::mutex> lock(mOrderIndexMutex);
-    auto it = mOrderIndex.find(orderId);
-
-    if (it == mOrderIndex.end())
+    if (!mPendingCommands.Push(command))
     {
-        spdlog::warn("CancelOrder rejected: orderId={} not found", orderId);
-        return false;
+        spdlog::critical("MatchingEngine command queue overflow");
+        std::terminate();
     }
-
-    auto idx = it->second;
-    Order &order = mOrders.Get(idx);
-
-    spdlog::info("CancelOrder found orderId={} idx={} qty={} cancelled={}", orderId, idx, order.quantity,
-                 order.cancelled.load());
-
-    order.cancelled.store(true, std::memory_order_release);
-
-    mOrderIndex.erase(it);
-
-    return true;
 }
 
 OrderPool &MatchingEngine::GetPoll() { return mOrders; }
 
 void MatchingEngine::Start()
 {
-    spdlog::info("MatchingEngine::Start");
-    if (mRunning.exchange(true))
+    spdlog::info("MatchingEngine::Start running={}", mRunning.load());
+    if (mRunning.exchange(true, std::memory_order_acq_rel))
         return;
 
     mThread = std::jthread([this](std::stop_token st) { Run(st); });
@@ -89,7 +84,7 @@ void MatchingEngine::Stop()
 void MatchingEngine::ResetForTesting()
 {
     Stop();
-    mPendingOrders.Reset();
+    mPendingCommands.Reset();
     mOrderBook.clear();
     mOrderIndex.clear();
     mOrders.Reset();
@@ -99,68 +94,35 @@ void MatchingEngine::ResetForTesting()
 
 void MatchingEngine::Run(std::stop_token stop)
 {
-    // uint32_t localQueueHead{0};
     spdlog::info("MatchingEngine::Run begin");
 
     while (!stop.stop_requested() && mRunning.load(std::memory_order_acquire))
     {
-        auto idx = mPendingOrders.Pop();
+        auto command = mPendingCommands.Pop();
 
-        if (!idx)
+        if (!command)
         {
             std::this_thread::yield();
             continue;
         }
 
-        Order &order = mOrders.Get(*idx);
-        ProcessOrder(order, *idx);
+        spdlog::info("MatchingEngine::Run {} id={} client={} idx={}", EngineCommand::TypeToString(command->type),
+                     command->orderId, command->clientId, command->orderIdx);
+
+        switch (command->type)
+        {
+        case eEngineCommandType::NEW_ORDER: {
+            Order &order = mOrders.Get(command->orderIdx);
+            ProcessOrder(order, command->orderIdx);
+            break;
+        }
+        case eEngineCommandType::CANCEL_ORDER:
+            ProcessCancel(*command);
+            break;
+        }
     }
 
     spdlog::info("MatchingEngine::Run end");
-
-    // // Get current available orders
-    // uint32_t head = mHeadIdx.exchange(0, std::memory_order_acq_rel);
-    // if (head == 0 && localQueueHead == 0)
-    // {
-    //     std::this_thread::yield();
-    //     continue;
-    // }
-
-    // // Reverse chunk
-    // uint32_t current = head;
-    // uint32_t reversedHead = 0;
-    // while (current != 0)
-    // {
-    //     uint32_t next = mOrders.Get(current).nextIdx.load(std::memory_order_acquire);
-    //     mOrders.Get(current).nextIdx.store(reversedHead, std::memory_order_relaxed);
-    //     reversedHead = current;
-    //     current = next;
-    // }
-
-    // if (localQueueHead == 0)
-    // {
-    //     localQueueHead = reversedHead;
-    // }
-    // else
-    // {
-    //     uint32_t temp = localQueueHead;
-    //     while (mOrders.Get(temp).nextIdx.load(std::memory_order_relaxed) != 0)
-    //     {
-    //         temp = mOrders.Get(temp).nextIdx.load(std::memory_order_relaxed);
-    //     }
-    //     mOrders.Get(temp).nextIdx.store(reversedHead, std::memory_order_relaxed);
-    // }
-
-    // while (localQueueHead != 0)
-    // {
-    //     Order &order = mOrders.Get(localQueueHead);
-    //     uint32_t nextToProcess = order.nextIdx.load(std::memory_order_relaxed);
-
-    //     uint32_t currentIdx = localQueueHead;
-
-    //     ProcessOrder(order, currentIdx);
-    //     localQueueHead = nextToProcess;
-    // }
 }
 
 void MatchingEngine::ProcessOrder(Order &takerOrder, uint32_t takerIdx)
@@ -169,6 +131,8 @@ void MatchingEngine::ProcessOrder(Order &takerOrder, uint32_t takerIdx)
     spdlog::info("ProcessOrder idx={} client={} order={} {} {} qty={} price={} type={}", takerIdx, takerOrder.clientId,
                  takerOrder.orderId, takerOrder.symbol, takerOrder.side == eSide::BUY ? "BUY" : "SELL",
                  takerOrder.quantity, takerOrder.price, takerOrder.orderType == eOrderType::LIMIT ? "LIMIT" : "MARKET");
+
+    PostAccepted(takerOrder);
 
     auto &book = mOrderBook[takerOrder.symbol];
 
@@ -182,6 +146,38 @@ void MatchingEngine::ProcessOrder(Order &takerOrder, uint32_t takerIdx)
     }
 }
 
+void MatchingEngine::ProcessCancel(const EngineCommand &command)
+{
+    spdlog::info("ProcessCancel client={} order={} symbol={} indexSize={}", command.clientId, command.orderId,
+                 command.symbol, mOrderIndex.size());
+
+    bool canceled{false};
+    {
+        std::lock_guard<std::mutex> lock(mOrderIndexMutex);
+        auto it = mOrderIndex.find(command.orderId);
+
+        if (it != mOrderIndex.end())
+        {
+            Order &order = mOrders.Get(it->second);
+            order.cancelled.store(true, std::memory_order_release);
+            mOrderIndex.erase(it);
+
+            canceled = true;
+        }
+    }
+
+    TradeNotification cancelNote{};
+    cancelNote.type = canceled ? eTradeNotificationType::CANCELLED : eTradeNotificationType::CANCELLED_REJECTED;
+    cancelNote.clientId = command.clientId;
+    cancelNote.orderId = command.orderId;
+    cancelNote.price = command.price;
+    cancelNote.quantity = 0;
+    cancelNote.isFullFill = false;
+    std::strncpy(cancelNote.symbol, command.symbol, sizeof(cancelNote.symbol) - 1);
+
+    NotificationDispatcher::Instance().Post(command.responseThreadIdx, cancelNote);
+}
+
 void MatchingEngine::GenerateTrade(const Order &taker, const Order &maker, uint32_t qty, double price, bool takerFilled,
                                    bool makerFilled)
 {
@@ -189,22 +185,52 @@ void MatchingEngine::GenerateTrade(const Order &taker, const Order &maker, uint3
                  maker.clientId, qty, price, takerFilled, makerFilled);
 
     TradeNotification takerNote{};
+    takerNote.type = takerFilled ? eTradeNotificationType::FILLED : eTradeNotificationType::PARTIALLY_FILLED;
     takerNote.clientId = taker.clientId;
     takerNote.orderId = taker.orderId;
     std::strncpy(takerNote.symbol, taker.symbol, sizeof(taker.symbol) - 1);
-    takerNote.fillPrice = price;
-    takerNote.fillQuantity = qty;
+    takerNote.price = price;
+    takerNote.quantity = qty;
     takerNote.isFullFill = takerFilled;
 
     NotificationDispatcher::Instance().Post(taker.responseThreadIdx, takerNote);
 
     TradeNotification makerNote{};
+    makerNote.type = makerFilled ? eTradeNotificationType::FILLED : eTradeNotificationType::PARTIALLY_FILLED;
     makerNote.clientId = maker.clientId;
     makerNote.orderId = maker.orderId;
     std::strncpy(makerNote.symbol, maker.symbol, sizeof(maker.symbol) - 1);
-    makerNote.fillPrice = price;
-    makerNote.fillQuantity = qty;
+    makerNote.price = price;
+    makerNote.quantity = qty;
     makerNote.isFullFill = makerFilled;
 
     NotificationDispatcher::Instance().Post(maker.responseThreadIdx, makerNote);
+}
+
+void MatchingEngine::PostAccepted(const Order &order)
+{
+    TradeNotification note{};
+    note.type = eTradeNotificationType::ACCEPTED;
+    note.clientId = order.clientId;
+    note.orderId = order.orderId;
+
+    std::strncpy(note.symbol, order.symbol, sizeof(note.symbol) - 1);
+    note.price = order.price;
+    note.quantity = order.quantity;
+    note.isFullFill = false;
+
+    NotificationDispatcher::Instance().Post(order.responseThreadIdx, note);
+}
+
+void MatchingEngine::PostCancelResult(const Order &order, bool canceled)
+{
+    TradeNotification note{};
+    note.type = canceled ? eTradeNotificationType::CANCELLED : eTradeNotificationType::CANCELLED_REJECTED;
+    std::strncpy(note.symbol, order.symbol, sizeof(note.symbol) - 1);
+    note.clientId = order.clientId;
+    note.orderId = order.orderId;
+    note.price = order.price;
+    note.quantity = 0;
+
+    NotificationDispatcher::Instance().Post(order.responseThreadIdx, note);
 }
