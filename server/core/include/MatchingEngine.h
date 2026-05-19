@@ -11,6 +11,7 @@
 #include <type_traits>
 #include <unordered_map>
 
+#include "../include/MPSCQueue.h"
 #include "../include/OrderPool.h"
 
 class MatchingEngine
@@ -47,9 +48,7 @@ private:
     std::atomic<bool> mRunning{false};
     std::jthread mThread;
 
-    // TODO: Implement and apply here MPSCQueue ti avoid race condition and using mutex
-    std::mutex mPendingMutex;
-    std::queue<uint32_t> mPendingOrders;
+    MPSCQueue<uint32_t, 8192> mPendingOrders;
 
     std::mutex mOrderIndexMutex;
     std::unordered_map<uint64_t, uint32_t> mOrderIndex;

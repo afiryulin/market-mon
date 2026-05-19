@@ -1,8 +1,6 @@
 #pragma once
 
-#include <array>
 #include <cstdint>
-#include <spdlog/spdlog.h>
 
 struct TradeNotification
 {
