@@ -27,6 +27,7 @@
                 "ms-vscode.cpptools",
                 "ms-vscode.cmake-tools",
                 "pbkit.vscode-pbkit",
+                "xaver.clang-format",
                 "kylinideteam.cmake-intellisence"],
             "settings": {
                 "terminal.integrated.defaultProfile.linux": "zsh"

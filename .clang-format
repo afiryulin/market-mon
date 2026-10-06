@@ -1,5 +1,7 @@
 BasedOnStyle: LLVM
 IndentWidth: 4
+ContinuationIndentWidth: 4
+UseTab: Never
 AccessModifierOffset: -4
 ColumnLimit: 120
 Standard: Latest
@@ -19,3 +21,7 @@ BraceWrapping:
   BeforeElse: true
 # Clean up includes automatically
 SortIncludes: true
+AlignAfterOpenBracket: Align
+AlignOperands: Align
+AllowShortBlocksOnASingleLine: false
+AllowShortFunctionsOnASingleLine: None
