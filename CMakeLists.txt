@@ -26,6 +26,8 @@ configure_file(
 add_subdirectory(proto)
 add_subdirectory(server)
 add_subdirectory(client)
+add_subdirectory(libs/itch_parser)
+
 if(ENABLE_TESTS)
     add_subdirectory(tests)
 endif()
